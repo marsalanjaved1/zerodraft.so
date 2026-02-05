@@ -1,200 +1,136 @@
-# 🚀 zerodraft.so
+<div align="center">
 
-**An AI-Powered Agentic Text Editor for Product Managers**
+# zerodraft.so
 
-zerodraft.so is a next-generation document workspace that combines the power of AI agents with a beautiful, VS Code-inspired interface. Built for product managers, writers, and teams who want to work faster with intelligent assistance.
+### Write smarter. Ship faster.
 
-![zerodraft.so](https://img.shields.io/badge/Next.js-16.1-black?style=flat-square&logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)
-![Supabase](https://img.shields.io/badge/Supabase-Powered-green?style=flat-square&logo=supabase)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
+The AI-native text editor that actually gets work done.
 
----
-
-## ✨ Features
-
-### 🤖 **AI Copilot**
-- **Intelligent File Operations**: Read, write, update, and list files using natural language
-- **Context-Aware**: The AI understands your workspace structure and file contents
-- **Multi-Step Workflows**: Generate PRDs, user stories, meeting agendas, and more
-- **No Loops**: Advanced prompt engineering prevents agent loops and ensures decisive responses
-
-### 📝 **Rich Text Editor**
-- **Novel Editor Integration**: Beautiful, distraction-free writing experience
-- **Slash Commands**: Quick access to formatting and AI features
-- **Real-time Collaboration**: Built on Tiptap for extensibility
-- **Markdown Support**: Write in markdown, export to any format
-
-### 🗂️ **Workspace Management**
-- **VS Code-Inspired UI**: Familiar file explorer, tabs, and editor layout
-- **Drag & Drop**: Organize files and folders effortlessly
-- **Context Menus**: Right-click for quick actions (rename, delete, move)
-- **File Import**: Support for DOCX, PDF, Markdown, and Google Docs
-
-### 🔐 **Authentication & Storage**
-- **Supabase Backend**: Secure authentication and database
-- **File Storage**: Upload and manage documents with ease
-- **Row-Level Security**: Your data is protected by default
+[Get Started](#quick-start) · [Features](#what-makes-zerodraft-different) · [Documentation](SETUP.md)
 
 ---
 
-## 🛠️ Tech Stack
+</div>
 
-| Category | Technology |
-|----------|-----------|
-| **Framework** | Next.js 16.1 (App Router) |
-| **Language** | TypeScript 5.0 |
-| **Styling** | Tailwind CSS 4.0 |
-| **Database** | Supabase (PostgreSQL) |
-| **AI** | LangChain + OpenRouter |
-| **Editor** | Tiptap + Novel |
-| **UI Components** | Radix UI |
-| **Drag & Drop** | dnd-kit |
+## The Problem
 
----
+You're a product manager. You have 47 browser tabs open, three different docs for the same project, and your AI assistant keeps asking you to paste context it should already have.
 
-## 🚀 Quick Start
+Sound familiar?
 
-### Prerequisites
-- Node.js 18+ and npm/yarn/pnpm
-- Supabase account ([sign up here](https://supabase.com))
-- OpenRouter API key ([get one here](https://openrouter.ai))
+## The Solution
 
-### Installation
+**zerodraft** is a document workspace where your AI assistant lives *inside* your files. It sees what you see. It knows your project structure. When you say "turn this PRD into user stories," it just... does it.
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/marsalanjaved1/zerodraft.so.git
-   cd zerodraft.so
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   yarn install
-   # or
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-   
-   Create a `.env.local` file in the root directory:
-   ```env
-   # Supabase
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-   # AI
-   OPENROUTER_API_KEY=your_openrouter_api_key
-   ```
-
-4. **Set up Supabase database**
-   
-   Run the SQL migrations in your Supabase dashboard:
-   ```bash
-   # Navigate to SQL Editor in Supabase dashboard
-   # Run the contents of:
-   supabase/schema.sql
-   supabase/migrations/20240205_add_file_structure.sql
-   supabase/migrations/20240205_storage_policies.sql
-   ```
-
-5. **Run the development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
----
-
-## 📖 Usage
-
-### Creating Your First Workspace
-1. Sign up or log in
-2. Click "Create Workspace" on the dashboard
-3. Start adding documents or use the AI Copilot
-
-### Using the AI Copilot
-Open the Copilot panel (right side) and try:
-- `"List all files in my workspace"`
-- `"Read PRD.md and generate 3 user stories"`
-- `"Create a meeting agenda for tomorrow's sprint planning"`
-- `"Compare design_v1.md and design_v2.md"`
-
-### Importing Documents
-- **DOCX**: Click the upload icon and select your Word document
-- **PDF**: Upload PDFs for reference (view-only)
-- **Google Docs**: Paste the share link to import
-
----
-
-## 🏗️ Project Structure
+No copy-pasting. No "let me search for that file." No endless loops.
 
 ```
-zerodraft.so/
-├── src/
-│   ├── app/
-│   │   ├── (auth)/          # Authentication pages
-│   │   ├── api/chat/        # AI Copilot API route
-│   │   ├── dashboard/       # Workspace dashboard
-│   │   └── w/[workspaceId]/ # Workspace editor
-│   ├── components/
-│   │   ├── CommandCenter.tsx   # AI Copilot UI
-│   │   ├── Editor.tsx          # Rich text editor
-│   │   ├── FileExplorer.tsx    # File tree sidebar
-│   │   └── novel/              # Novel editor integration
-│   └── lib/
-│       ├── client-tools.ts     # Client-side tool execution
-│       ├── supabase/           # Supabase clients
-│       └── importers.ts        # DOCX/PDF import logic
-├── supabase/
-│   ├── schema.sql              # Database schema
-│   └── migrations/             # SQL migrations
-└── SETUP.md                    # Detailed setup guide
+You: "Read the product brief and draft 5 user stories"
+
+zerodraft: [reads file] → [generates stories] → done.
 ```
 
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+That's it. One request. One result. 
 
 ---
 
-## 📄 License
+## What Makes zerodraft Different
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+**🧠 Context-aware AI**  
+Your copilot reads your actual files, not just what you paste into a chat window.
 
----
+**⚡ Decisive, not chatty**  
+We engineered the AI to act, not deliberate. Ask for user stories, get user stories.
 
-## 🙏 Acknowledgments
+**🎨 Beautiful by default**  
+VS Code-inspired interface. Dark mode. Minimal distractions.
 
-- [Next.js](https://nextjs.org) - The React framework
-- [Supabase](https://supabase.com) - Open source Firebase alternative
-- [Tiptap](https://tiptap.dev) - Headless editor framework
-- [Novel](https://novel.sh) - Beautiful editor UI
-- [LangChain](https://langchain.com) - AI orchestration
-- [Radix UI](https://radix-ui.com) - Accessible components
-
----
-
-## 📧 Contact
-
-**Arsalan Javed** - [@marsalanjaved1](https://github.com/marsalanjaved1)
-
-**Project Link**: [https://github.com/marsalanjaved1/zerodraft.so](https://github.com/marsalanjaved1/zerodraft.so)
+**📁 Real file system**  
+Create folders, move files, import Word docs and PDFs. Your workspace, organized your way.
 
 ---
 
-<p align="center">Made with ❤️ for product managers everywhere</p>
+## Quick Start
+
+```bash
+# Clone it
+git clone https://github.com/marsalanjaved1/zerodraft.so.git
+cd zerodraft.so
+
+# Install it
+npm install
+
+# Configure it (create .env.local with your keys)
+cp .env.example .env.local
+
+# Run it
+npm run dev
+```
+
+Open [localhost:3000](http://localhost:3000) and start writing.
+
+> **Need help with setup?** Check out [SETUP.md](SETUP.md) for detailed instructions on configuring Supabase and OpenRouter.
+
+---
+
+## What You Can Do
+
+| Ask zerodraft to... | What happens |
+|---------------------|--------------|
+| "List my files" | Shows your workspace structure |
+| "Read PRD.md and summarize it" | Reads the file, gives you a summary |
+| "Create a meeting agenda for sprint planning" | Writes a new document with your agenda |
+| "Turn this into user stories" | Generates formatted user stories from context |
+
+The AI uses real file operations—no smoke and mirrors.
+
+---
+
+## Built With
+
+- **Next.js 16** — React framework
+- **Supabase** — Auth, database, storage
+- **Tiptap + Novel** — Rich text editing
+- **LangChain + OpenRouter** — AI orchestration
+- **TypeScript** — Type safety throughout
+
+---
+
+## Why We Built This
+
+Every PM tool either:
+1. Has AI bolted on as an afterthought, or
+2. Requires you to manually feed context to the AI
+
+We wanted something native. Something where the AI is a first-class citizen that understands your workspace from day one.
+
+zerodraft is that tool.
+
+---
+
+## Contributing
+
+Found a bug? Have an idea? PRs are welcome.
+
+```bash
+git checkout -b your-feature
+# make changes
+git commit -m "Add your feature"
+git push origin your-feature
+```
+
+Open a pull request and let's talk.
+
+---
+
+## License
+
+MIT. Use it, fork it, make it yours.
+
+---
+
+<div align="center">
+
+**[zerodraft.so](https://zerodraft.so)** — Write smarter.
+
+</div>
