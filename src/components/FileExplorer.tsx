@@ -231,6 +231,42 @@ export function FileExplorer({
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
+    const [isDraggingFile, setIsDraggingFile] = useState(false);
+    const dropZoneRef = useRef<HTMLDivElement>(null);
+
+    // File drag-drop handlers for external files
+    const handleFileDragEnter = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer.types.includes('Files')) {
+            setIsDraggingFile(true);
+        }
+    };
+
+    const handleFileDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only hide if leaving the sidebar entirely
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            setIsDraggingFile(false);
+        }
+    };
+
+    const handleFileDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const handleFileDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingFile(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0 && onUpload) {
+            files.forEach(file => onUpload(file));
+        }
+    };
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -288,7 +324,13 @@ export function FileExplorer({
     };
 
     return (
-        <aside className="w-[240px] flex-none flex flex-col border-r border-[#3c3c3c] bg-[#252526]">
+        <aside
+            className={`w-[240px] flex-none flex flex-col border-r border-[#3c3c3c] bg-[#252526] relative ${isDraggingFile ? 'ring-2 ring-inset ring-[#007acc]' : ''}`}
+            onDragEnter={handleFileDragEnter}
+            onDragLeave={handleFileDragLeave}
+            onDragOver={handleFileDragOver}
+            onDrop={handleFileDrop}
+        >
             {/* Header */}
             <div className="px-4 py-2 border-b border-[#3c3c3c]">
                 <div className="flex items-center justify-between">
@@ -351,6 +393,45 @@ export function FileExplorer({
                     </DragOverlay>
                 </DndContext>
             </div>
+
+            {/* Drop Zone */}
+            <div
+                ref={dropZoneRef}
+                className={`mx-3 mb-3 p-4 border-2 border-dashed rounded-lg transition-all duration-200 ${isDraggingFile
+                        ? 'border-[#007acc] bg-[#007acc]/10'
+                        : 'border-[#3c3c3c] hover:border-[#4c4c4c] hover:bg-[#2d2d2d]'
+                    }`}
+            >
+                <label className="cursor-pointer flex flex-col items-center gap-2">
+                    <UploadCloud className={`w-8 h-8 transition-colors ${isDraggingFile ? 'text-[#007acc]' : 'text-[#858585]'}`} />
+                    <span className={`text-xs text-center transition-colors ${isDraggingFile ? 'text-[#007acc]' : 'text-[#858585]'}`}>
+                        {isDraggingFile ? 'Drop files here' : 'Drop files or click to upload'}
+                    </span>
+                    <span className="text-[10px] text-[#666666]">.txt, .md, .json, .pdf, .docx</span>
+                    <input
+                        type="file"
+                        className="hidden"
+                        multiple
+                        onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            if (files.length > 0 && onUpload) {
+                                files.forEach(file => onUpload(file));
+                            }
+                            e.target.value = '';
+                        }}
+                    />
+                </label>
+            </div>
+
+            {/* Full-screen drop overlay when dragging */}
+            {isDraggingFile && (
+                <div className="absolute inset-0 bg-[#007acc]/5 pointer-events-none z-10 flex items-center justify-center">
+                    <div className="bg-[#1e1e1e]/95 px-6 py-4 rounded-lg border border-[#007acc] shadow-xl">
+                        <UploadCloud className="w-10 h-10 mx-auto mb-2 text-[#007acc]" />
+                        <p className="text-[#007acc] text-sm font-medium">Drop to upload</p>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog.Root open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
