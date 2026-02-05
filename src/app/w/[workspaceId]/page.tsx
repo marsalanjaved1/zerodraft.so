@@ -4,6 +4,8 @@
 import { Header } from "@/components/Header";
 import { FileExplorer } from "@/components/FileExplorer";
 import { StatusBar } from "@/components/StatusBar";
+import { FocusMode } from "@/components/FocusMode";
+import { exportToWord, exportToHtml, exportToMarkdown, exportToPlainText, exportToPdf } from "@/components/ExportDialog";
 import dynamic from "next/dynamic";
 import { CommandCenter } from "@/components/CommandCenter";
 import { useState, useCallback, useEffect, use, useMemo } from "react";
@@ -35,31 +37,14 @@ export interface FileNode {
     content?: string;
 }
 
-// Export helpers
-const exportToWord = (html: string, filename: string = 'document') => {
-    const blob = new Blob([`
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body>${html}</body>
-</html>
-  `], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.doc`;
-    a.click();
-    URL.revokeObjectURL(url);
+// Note: Export functions moved to ExportDialog.tsx
+// Legacy export functions kept for backwards compatibility
+const legacyExportToWord = (html: string, filename: string = 'document') => {
+    exportToWord(html, filename);
 };
 
-const exportToHtml = (html: string, filename: string = 'document') => {
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+const legacyExportToHtml = (html: string, filename: string = 'document') => {
+    exportToHtml(html, filename);
 };
 
 export default function WorkspacePage({ params }: { params: Promise<{ workspaceId: string }> }) {
@@ -72,6 +57,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
     const [editorActions, setEditorActions] = useState<EditorActions | null>(null);
     const [loading, setLoading] = useState(true);
     const [wordCount, setWordCount] = useState<{ words: number; characters: number }>({ words: 0, characters: 0 });
+    const [isFocusMode, setIsFocusMode] = useState(false);
 
     // Autosave hook
     const { status: saveStatus, lastSaved, updateContent: triggerAutosave, saveNow, hasUnsavedChanges } = useAutosave({
@@ -235,10 +221,12 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                 onExportPdf={() => window.print()}
                 onExportWord={() => editorActions && exportToWord(editorActions.getHTML(), filename)}
                 onExportHtml={() => editorActions && exportToHtml(editorActions.getHTML(), filename)}
+                onExportMarkdown={() => editorActions && exportToMarkdown(editorActions.getHTML(), filename)}
                 onUndo={() => editorActions?.undo()}
                 onRedo={() => editorActions?.redo()}
                 onSelectAll={() => editorActions?.selectAll()}
                 onClearFormatting={() => editorActions?.clearFormatting()}
+                onFocusMode={() => setIsFocusMode(true)}
                 onShowWordCount={() => {
                     if (editorActions) {
                         const { words, characters } = editorActions.getWordCount();
@@ -324,6 +312,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     onFilesChange={setFiles}
                 />
             </div>
+
+            {/* Focus Mode Overlay */}
+            <FocusMode
+                isActive={isFocusMode}
+                onClose={() => setIsFocusMode(false)}
+            >
+                {selectedFile && editorContent && (
+                    <div
+                        className="prose prose-invert prose-lg"
+                        dangerouslySetInnerHTML={{ __html: editorContent }}
+                    />
+                )}
+            </FocusMode>
         </div>
     );
 }

@@ -7,11 +7,15 @@ interface HeaderProps {
     onExportPdf?: () => void;
     onExportWord?: () => void;
     onExportHtml?: () => void;
+    onExportMarkdown?: () => void;
     onUndo?: () => void;
     onRedo?: () => void;
     onSelectAll?: () => void;
     onClearFormatting?: () => void;
     onShowWordCount?: () => void;
+    onFocusMode?: () => void;
+    onSplitView?: () => void;
+    onFind?: () => void;
     canUndo?: boolean;
     canRedo?: boolean;
 }
@@ -69,8 +73,8 @@ function DropdownMenu({
                                 }}
                                 disabled={item.disabled}
                                 className={`w-full px-3 py-1.5 text-left text-xs flex items-center gap-2.5 ${item.disabled
-                                        ? 'text-[#6e6e6e] cursor-not-allowed'
-                                        : 'text-[#cccccc] hover:bg-[#094771]'
+                                    ? 'text-[#6e6e6e] cursor-not-allowed'
+                                    : 'text-[#cccccc] hover:bg-[#094771]'
                                     }`}
                             >
                                 {item.icon && <span className="w-3.5 h-3.5 flex items-center justify-center opacity-70">{item.icon}</span>}
@@ -91,11 +95,15 @@ export function Header({
     onExportPdf,
     onExportWord,
     onExportHtml,
+    onExportMarkdown,
     onUndo,
     onRedo,
     onSelectAll,
     onClearFormatting,
     onShowWordCount,
+    onFocusMode,
+    onSplitView,
+    onFind,
     canUndo = false,
     canRedo = false,
 }: HeaderProps) {
@@ -113,8 +121,12 @@ export function Header({
         {
             label: 'Export as Word',
             icon: <FileText size={iconSize} />,
-            shortcut: '⌘⇧W',
             onClick: onExportWord || (() => { }),
+        },
+        {
+            label: 'Export as Markdown',
+            icon: <Code size={iconSize} />,
+            onClick: onExportMarkdown || (() => { }),
         },
         {
             label: 'Export as HTML',
@@ -182,10 +194,20 @@ export function Header({
         {
             label: 'Focus Mode',
             icon: <Maximize size={iconSize} />,
-            onClick: () => {
-                const editorEl = document.querySelector('.tiptap-editor');
-                editorEl?.classList.toggle('focus-mode');
-            },
+            shortcut: '⌘⇧F',
+            onClick: onFocusMode || (() => { }),
+        },
+        {
+            label: 'Split View',
+            icon: <Eye size={iconSize} />,
+            onClick: onSplitView || (() => { }),
+        },
+        { divider: true, label: '', onClick: () => { } },
+        {
+            label: 'Find in Document',
+            icon: <Eye size={iconSize} />,
+            shortcut: '⌘F',
+            onClick: onFind || (() => { }),
         },
         { divider: true, label: '', onClick: () => { } },
         {
