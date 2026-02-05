@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, DragEvent } from "react";
 import {
     EditorRoot,
     EditorContent,
@@ -11,7 +11,7 @@ import {
     handleCommandNavigation,
 } from "novel";
 import type { EditorInstance } from "novel";
-import { Folder, FileText } from "lucide-react";
+import { Folder, FileText, Upload, FileUp } from "lucide-react";
 import type { FileNode } from "@/app/page";
 
 import { defaultExtensions } from "./extensions";
@@ -37,6 +37,7 @@ interface NovelEditorProps {
     content: string;
     onContentChange: (content: string) => void;
     onEditorReady?: (actions: EditorActions) => void;
+    onFileImport?: (name: string, content: string) => void;
 }
 
 export function NovelEditor({
@@ -44,10 +45,119 @@ export function NovelEditor({
     content,
     onContentChange,
     onEditorReady,
+    onFileImport,
 }: NovelEditorProps) {
     const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
     const [openNode, setOpenNode] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Drag and drop handlers
+    const handleDragEnter = useCallback((e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    }, []);
+
+    const handleDragLeave = useCallback((e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only set false if leaving the main container
+        if (e.currentTarget === e.target) {
+            setIsDragging(false);
+        }
+    }, []);
+
+    const handleDragOver = useCallback((e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    const handleDrop = useCallback(async (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length === 0) return;
+
+        for (const file of files) {
+            const fileName = file.name;
+            const extension = fileName.split('.').pop()?.toLowerCase();
+
+            try {
+                let fileContent = '';
+
+                // Handle different file types
+                if (extension === 'txt' || extension === 'md' || extension === 'markdown') {
+                    fileContent = await file.text();
+                    // Convert markdown to HTML for the editor
+                    if (extension === 'md' || extension === 'markdown') {
+                        // Simple markdown-to-HTML conversion for common elements
+                        fileContent = markdownToHtml(fileContent);
+                    }
+                } else if (extension === 'json') {
+                    const jsonText = await file.text();
+                    try {
+                        const parsed = JSON.parse(jsonText);
+                        fileContent = `<pre><code>${JSON.stringify(parsed, null, 2)}</code></pre>`;
+                    } catch {
+                        fileContent = `<pre><code>${jsonText}</code></pre>`;
+                    }
+                } else if (extension === 'html' || extension === 'htm') {
+                    fileContent = await file.text();
+                } else {
+                    // Unsupported format - try to read as text anyway
+                    try {
+                        fileContent = await file.text();
+                    } catch {
+                        console.warn(`Could not read file: ${fileName}`);
+                        continue;
+                    }
+                }
+
+                // Either import as new file or insert into current editor
+                if (onFileImport) {
+                    onFileImport(fileName, fileContent);
+                } else if (editorInstance) {
+                    // Insert content at cursor position
+                    editorInstance.chain().focus().insertContent(fileContent).run();
+                }
+            } catch (error) {
+                console.error(`Error reading file ${fileName}:`, error);
+            }
+        }
+    }, [editorInstance, onFileImport]);
+
+    // Simple markdown to HTML converter
+    const markdownToHtml = (md: string): string => {
+        return md
+            // Headers
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Code blocks
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            // Inline code
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            // Links
+            .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+            // Bullet lists
+            .replace(/^\- (.*$)/gm, '<li>$1</li>')
+            // Numbered lists
+            .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
+            // Paragraphs (double newlines)
+            .replace(/\n\n/g, '</p><p>')
+            // Wrap in paragraph
+            .replace(/^(.+)$/gm, (match) => {
+                if (match.startsWith('<')) return match;
+                return `<p>${match}</p>`;
+            });
+    };
 
     // Search functionality
     const {
@@ -120,11 +230,28 @@ export function NovelEditor({
 
     if (!file) {
         return (
-            <main className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative items-center justify-center">
-                <div className="text-[#858585] text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg">Select a file to start editing</p>
-                </div>
+            <main
+                className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative items-center justify-center"
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+            >
+                {isDragging ? (
+                    <div className="absolute inset-0 bg-[#007acc]/20 border-2 border-dashed border-[#007acc] rounded-lg m-4 flex items-center justify-center z-50">
+                        <div className="text-center">
+                            <FileUp className="w-16 h-16 mx-auto mb-4 text-[#007acc]" />
+                            <p className="text-lg text-[#007acc] font-medium">Drop file to import</p>
+                            <p className="text-sm text-[#858585] mt-2">.txt, .md, .json, .html supported</p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-[#858585] text-center">
+                        <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg">Select a file to start editing</p>
+                        <p className="text-sm mt-2 opacity-75">or drag & drop a file here</p>
+                    </div>
+                )}
             </main>
         );
     }
@@ -132,7 +259,24 @@ export function NovelEditor({
     const pathParts = file.path.split("/").filter(Boolean);
 
     return (
-        <main className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative">
+        <main
+            className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative"
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
+            {/* Drag Overlay */}
+            {isDragging && (
+                <div className="absolute inset-0 bg-[#007acc]/20 border-2 border-dashed border-[#007acc] rounded-lg m-2 flex items-center justify-center z-50 pointer-events-none">
+                    <div className="text-center bg-[#1e1e1e]/90 px-8 py-6 rounded-lg">
+                        <FileUp className="w-12 h-12 mx-auto mb-3 text-[#007acc]" />
+                        <p className="text-lg text-[#007acc] font-medium">Drop to insert content</p>
+                        <p className="text-sm text-[#858585] mt-1">.txt, .md, .json, .html</p>
+                    </div>
+                </div>
+            )}
+
             {/* Breadcrumbs Bar */}
             <div className="flex items-center justify-between px-4 py-1.5 border-b border-[#3c3c3c] bg-[#252526]">
                 <div className="flex items-center gap-1.5 text-[13px]">
