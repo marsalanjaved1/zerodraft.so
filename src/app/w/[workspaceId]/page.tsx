@@ -3,9 +3,10 @@
 
 import { Header } from "@/components/Header";
 import { FileExplorer } from "@/components/FileExplorer";
+import { StatusBar } from "@/components/StatusBar";
 import dynamic from "next/dynamic";
 import { CommandCenter } from "@/components/CommandCenter";
-import { useState, useCallback, useEffect, use } from "react";
+import { useState, useCallback, useEffect, use, useMemo } from "react";
 import type { EditorActions } from "@/components/novel";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +14,7 @@ import { buildFileTree } from "@/lib/utils/file-tree";
 import { createDocument, updateDocumentContent, renameDocument, deleteDocument, moveDocument, importDocument } from "./actions";
 import { uploadFile } from "@/lib/storage";
 import { TabsManager } from "@/components/TabsManager";
+import { useAutosave, type SaveStatus } from "@/lib/hooks/use-autosave";
 
 // Dynamic import with SSR disabled
 const NovelEditor = dynamic(() => import("@/components/novel").then(mod => ({ default: mod.NovelEditor })), {
@@ -69,6 +71,30 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
     const [editorContent, setEditorContent] = useState<string>("");
     const [editorActions, setEditorActions] = useState<EditorActions | null>(null);
     const [loading, setLoading] = useState(true);
+    const [wordCount, setWordCount] = useState<{ words: number; characters: number }>({ words: 0, characters: 0 });
+
+    // Autosave hook
+    const { status: saveStatus, lastSaved, updateContent: triggerAutosave, saveNow, hasUnsavedChanges } = useAutosave({
+        delay: 2000,
+        onSave: async (content: string) => {
+            if (selectedFile) {
+                await updateDocumentContent(selectedFile.id, content);
+            }
+        },
+    });
+
+    // Keyboard shortcuts (Cmd+S to save)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                saveNow();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [saveNow]);
 
     const fetchFiles = useCallback(async () => {
         const supabase = createClient();
@@ -148,12 +174,15 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         }
     };
 
-    const handleContentUpdate = (content: string) => {
+    const handleContentUpdate = useCallback((content: string) => {
         setEditorContent(content);
-        if (selectedFile) {
-            updateDocumentContent(selectedFile.id, content).catch(console.error);
+        triggerAutosave(content);
+
+        // Update word count
+        if (editorActions) {
+            setWordCount(editorActions.getWordCount());
         }
-    };
+    }, [triggerAutosave, editorActions]);
 
     const handleEditorReady = useCallback((actions: EditorActions) => {
         setEditorActions(actions);
@@ -277,6 +306,15 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                         <div className="flex-1 flex items-center justify-center text-[#858585]">
                             Select a file to edit
                         </div>
+                    )}
+
+                    {/* Status Bar */}
+                    {selectedFile && (
+                        <StatusBar
+                            saveStatus={saveStatus}
+                            lastSaved={lastSaved}
+                            wordCount={wordCount}
+                        />
                     )}
                 </div>
                 <CommandCenter

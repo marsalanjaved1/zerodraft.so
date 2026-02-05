@@ -17,6 +17,8 @@ import type { FileNode } from "@/app/page";
 import { defaultExtensions } from "./extensions";
 import { slashCommand, suggestionItems } from "./slash-command";
 import { EditorBubbleMenu } from "./bubble-menu";
+import { SearchBar } from "@/components/SearchBar";
+import { useEditorSearch } from "@/lib/hooks/use-editor-search";
 
 export interface EditorActions {
     undo: () => void;
@@ -45,11 +47,44 @@ export function NovelEditor({
 }: NovelEditorProps) {
     const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
     const [openNode, setOpenNode] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    // Search functionality
+    const {
+        query: searchQuery,
+        setQuery: setSearchQuery,
+        matchCount,
+        currentIndex,
+        goToNext,
+        goToPrevious,
+        replace,
+        replaceAll,
+        clear: clearSearch,
+    } = useEditorSearch({ editor: editorInstance });
 
     // Extensions including slash command
     const extensions = useMemo(() => {
         return [...defaultExtensions, slashCommand];
     }, []);
+
+    // Keyboard shortcuts for search (Cmd+F)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Close search and clear
+    const handleCloseSearch = useCallback(() => {
+        setIsSearchOpen(false);
+        clearSearch();
+    }, [clearSearch]);
 
     // Expose editor actions when editor is ready
     useEffect(() => {
@@ -125,7 +160,7 @@ export function NovelEditor({
             </div>
 
             {/* Novel Editor */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto relative">
                 <EditorRoot>
                     <EditorContent
                         immediatelyRender={false}
@@ -153,6 +188,19 @@ export function NovelEditor({
                     >
                         {/* Bubble Menu */}
                         <EditorBubbleMenu />
+
+                        {/* Search Bar */}
+                        <SearchBar
+                            isOpen={isSearchOpen}
+                            onClose={handleCloseSearch}
+                            onSearch={setSearchQuery}
+                            onNext={goToNext}
+                            onPrevious={goToPrevious}
+                            onReplace={replace}
+                            onReplaceAll={replaceAll}
+                            matchCount={matchCount}
+                            currentMatch={currentIndex}
+                        />
 
                         {/* Slash Command Menu */}
                         <EditorCommand className="z-50 h-auto max-h-[330px] overflow-y-auto rounded-lg border border-[#3c3c3c] bg-[#252526] p-2 shadow-2xl">
