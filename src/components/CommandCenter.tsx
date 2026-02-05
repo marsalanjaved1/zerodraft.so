@@ -107,7 +107,29 @@ export function CommandCenter({ currentFile, onFileUpdate, files, onFilesChange 
         }
     };
 
+    // Helper function to build folder tree string
+    const buildFolderTreeString = (nodes: FileNode[], prefix: string = ""): string => {
+        let tree = "";
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i];
+            const isLast = i === nodes.length - 1;
+            const connector = isLast ? "└── " : "├── ";
+            const icon = node.type === "folder" ? "📁" : "📄";
+
+            tree += `${prefix}${connector}${icon} ${node.name}\n`;
+
+            if (node.type === "folder" && node.children && node.children.length > 0) {
+                const childPrefix = prefix + (isLast ? "    " : "│   ");
+                tree += buildFolderTreeString(node.children, childPrefix);
+            }
+        }
+        return tree;
+    };
+
     const processChatRequest = async (messagesPayload: Message[], toolResults?: Array<{ toolCallId: string, result: string, toolName: string, args: any }>) => {
+        // Build folder tree for context
+        const folderTree = buildFolderTreeString(files);
+
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -119,6 +141,12 @@ export function CommandCenter({ currentFile, onFileUpdate, files, onFilesChange 
                 })),
                 model: selectedModel,
                 toolResults,
+                folderTree,
+                currentFile: currentFile ? {
+                    name: currentFile.name,
+                    path: currentFile.path,
+                    content: currentFile.content || ""
+                } : null
             }),
         });
 
