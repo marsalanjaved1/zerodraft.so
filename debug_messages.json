@@ -1,0 +1,21 @@
+{
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "I'm your AI assistant. I can help you with:\n\n• Reading and updating documents\n• Gathering feedback from Slack\n• Checking issue trackers\n• Researching topics on the web\n\nTry: \"Read the PRD and suggest improvements\""
+    },
+    {
+      "role": "user",
+      "content": "Hello"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello! How can I assist you today?"
+    },
+    {
+      "role": "user",
+      "content": "Hello"
+    }
+  ],
+  "model": "anthropic/claude-3.5-sonnet"
+}

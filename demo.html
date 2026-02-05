@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Product Engineering Workspace</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <!-- Theme Configuration -->
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1313ec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101022",
+                        "surface-dark": "#111122",
+                        "border-dark": "#232348",
+                        "text-muted": "#9292c9",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar for Cyberpunk Minimalist feel */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #111122;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #232348;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #323267;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24;
+            font-size: 20px;
+        }
+
+        /* Utility for filled icons */
+        .icon-filled {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display text-white h-screen flex flex-col overflow-hidden selection:bg-primary/30">
+    <!-- Top Navigation -->
+    <header
+        class="flex-none flex items-center justify-between whitespace-nowrap border-b border-solid border-border-dark bg-surface-dark px-6 py-3 z-20">
+        <div class="flex items-center gap-4 text-white">
+            <div class="flex items-center justify-center size-8 bg-primary/20 rounded-lg text-primary">
+                <span class="material-symbols-outlined">terminal</span>
+            </div>
+            <h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">Workspace</h2>
+        </div>
+        <div class="flex flex-1 justify-end gap-6 items-center">
+            <div class="hidden md:flex items-center gap-6">
+                <a class="text-text-muted hover:text-white transition-colors text-sm font-medium leading-normal"
+                    href="#">File</a>
+                <a class="text-text-muted hover:text-white transition-colors text-sm font-medium leading-normal"
+                    href="#">Edit</a>
+                <a class="text-text-muted hover:text-white transition-colors text-sm font-medium leading-normal"
+                    href="#">View</a>
+                <a class="text-text-muted hover:text-white transition-colors text-sm font-medium leading-normal"
+                    href="#">Run</a>
+            </div>
+            <div class="h-4 w-px bg-border-dark hidden md:block"></div>
+            <div class="flex gap-3">
+                <button
+                    class="flex items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-blue-700 transition-colors text-white text-sm font-bold leading-normal tracking-[0.015em] shadow-[0_0_15px_rgba(19,19,236,0.3)]">
+                    <span class="truncate flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">rocket_launch</span>
+                        Deploy
+                    </span>
+                </button>
+                <button
+                    class="flex items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-surface-dark border border-border-dark hover:bg-border-dark transition-colors text-white text-sm font-bold leading-normal tracking-[0.015em]">
+                    <span class="truncate">Share</span>
+                </button>
+            </div>
+            <div class="bg-center bg-no-repeat bg-cover rounded-full size-9 border border-border-dark cursor-pointer ring-2 ring-transparent hover:ring-primary/50 transition-all"
+                data-alt="User profile avatar showing abstract geometric shapes in blue and purple"
+                style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCujcGFWcm8bDYsKDsyA6SChd_l768TT4U4a4re-31WuHDJ--I5frkILuhM6XBAz-uUxwdwMbtCR81dYshGvlzbFz2BiwVv9FDWG6oAr2F-PnkhGxE0ypWj-xf_Ejq6zHCo4A26TdDputqju8Ie56n6qkNHd8QzRfvac5ntMreT5qDez4yicEWfIFlZYotuNudU1au3b2Y4GJFuR0ey8nGS8rTy-P4siayAHoxMQKK_aM_jG8l_V-TkfnKsvqA4ZgWBR5uJx_EZgtw");'>
+            </div>
+        </div>
+    </header>
+    <!-- Main Layout Area -->
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Left Sidebar: File Explorer -->
+        <aside class="w-[260px] flex-none flex flex-col border-r border-border-dark bg-surface-dark">
+            <!-- Sidebar Header -->
+            <div class="p-4 border-b border-border-dark/50">
+                <div class="flex items-center justify-between mb-2">
+                    <h1 class="text-white text-xs font-bold tracking-wider opacity-90">EXPLORER</h1>
+                    <span
+                        class="material-symbols-outlined text-text-muted cursor-pointer hover:text-white text-[16px]">more_horiz</span>
+                </div>
+                <p class="text-text-muted text-[11px] font-mono font-medium uppercase tracking-widest text-primary">Q3
+                    ROADMAP</p>
+            </div>
+            <!-- Quick Actions -->
+            <div class="flex flex-col gap-1 p-2 border-b border-border-dark/50">
+                <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-border-dark/50 cursor-pointer group">
+                    <span
+                        class="material-symbols-outlined text-white text-[20px] group-hover:text-primary transition-colors icon-filled">folder_open</span>
+                    <p class="text-white text-sm font-medium leading-normal">Project Files</p>
+                </div>
+                <div
+                    class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-border-dark/30 cursor-pointer transition-colors group">
+                    <span
+                        class="material-symbols-outlined text-text-muted text-[20px] group-hover:text-white transition-colors">search</span>
+                    <p class="text-text-muted group-hover:text-white text-sm font-medium leading-normal">Search</p>
+                </div>
+            </div>
+            <!-- File Tree (Accordions) -->
+            <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- Open Folder -->
+                <details class="group" open="">
+                    <summary
+                        class="flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 select-none list-none">
+                        <span
+                            class="material-symbols-outlined text-text-muted group-open:rotate-90 transition-transform text-[18px]">chevron_right</span>
+                        <span class="material-symbols-outlined text-primary text-[18px] icon-filled">folder</span>
+                        <span class="text-white text-sm font-medium ml-1">Specs</span>
+                    </summary>
+                    <div class="pl-3 mt-1 flex flex-col gap-0.5 border-l border-border-dark ml-4">
+                        <div
+                            class="flex items-center gap-2 px-2 py-1.5 rounded bg-primary/10 border-l-2 border-primary cursor-pointer">
+                            <span class="material-symbols-outlined text-blue-400 text-[16px]">article</span>
+                            <span class="text-white text-sm font-medium">PRD.md</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer">
+                            <span class="material-symbols-outlined text-text-muted text-[16px]">article</span>
+                            <span class="text-text-muted text-sm group-hover:text-white">Architecture.md</span>
+                        </div>
+                        <div class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer">
+                            <span class="material-symbols-outlined text-yellow-500 text-[16px]">data_object</span>
+                            <span class="text-text-muted text-sm group-hover:text-white">API_Contract.ts</span>
+                        </div>
+                    </div>
+                </details>
+                <!-- Closed Folders -->
+                <details class="group">
+                    <summary
+                        class="flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 select-none list-none">
+                        <span
+                            class="material-symbols-outlined text-text-muted group-open:rotate-90 transition-transform text-[18px]">chevron_right</span>
+                        <span class="material-symbols-outlined text-text-muted text-[18px]">folder</span>
+                        <span class="text-text-muted text-sm font-medium ml-1">Research</span>
+                    </summary>
+                </details>
+                <details class="group">
+                    <summary
+                        class="flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 select-none list-none">
+                        <span
+                            class="material-symbols-outlined text-text-muted group-open:rotate-90 transition-transform text-[18px]">chevron_right</span>
+                        <span class="material-symbols-outlined text-purple-400 text-[18px]">folder_special</span>
+                        <span class="text-text-muted text-sm font-medium ml-1">Live Data</span>
+                    </summary>
+                </details>
+                <details class="group">
+                    <summary
+                        class="flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 select-none list-none">
+                        <span
+                            class="material-symbols-outlined text-text-muted group-open:rotate-90 transition-transform text-[18px]">chevron_right</span>
+                        <span class="material-symbols-outlined text-green-500 text-[18px]">folder_open</span>
+                        <span class="text-text-muted text-sm font-medium ml-1">Assets</span>
+                    </summary>
+                </details>
+            </div>
+            <!-- Bottom Actions -->
+            <div class="p-3 border-t border-border-dark mt-auto">
+                <div
+                    class="flex items-center gap-3 px-2 py-2 rounded hover:bg-white/5 cursor-pointer text-text-muted hover:text-white">
+                    <span class="material-symbols-outlined text-[20px]">settings</span>
+                    <span class="text-sm">Settings</span>
+                </div>
+            </div>
+        </aside>
+        <!-- Center Canvas: Editor -->
+        <main class="flex-1 flex flex-col bg-background-dark overflow-hidden relative">
+            <!-- Breadcrumbs Bar -->
+            <div
+                class="flex items-center justify-between px-8 py-4 border-b border-border-dark/30 bg-background-dark/80 backdrop-blur sticky top-0 z-10">
+                <div class="flex items-center gap-2 text-sm">
+                    <a class="text-text-muted hover:text-white transition-colors font-medium flex items-center gap-1"
+                        href="#">
+                        <span class="material-symbols-outlined text-[16px]">folder</span> Specs
+                    </a>
+                    <span class="text-border-dark text-base font-medium">/</span>
+                    <a class="text-text-muted hover:text-white transition-colors font-medium" href="#">Q3</a>
+                    <span class="text-border-dark text-base font-medium">/</span>
+                    <span class="text-white font-medium flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[16px] text-blue-400">article</span> PRD.md
+                    </span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-text-muted">Last edited 2m ago</span>
+                    <div class="flex -space-x-2">
+                        <div class="size-6 rounded-full bg-blue-500 border border-background-dark"
+                            data-alt="Collaborator avatar gradient blue"></div>
+                        <div class="size-6 rounded-full bg-purple-500 border border-background-dark"
+                            data-alt="Collaborator avatar gradient purple"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Editor Content -->
+            <div class="flex-1 overflow-y-auto px-8 py-8 md:px-16 lg:px-24">
+                <div class="max-w-3xl mx-auto pb-20">
+                    <!-- Title -->
+                    <h1 class="text-white text-3xl font-bold tracking-tight mb-8">Product Requirements Document (PRD)
+                    </h1>
+                    <!-- Content -->
+                    <div class="space-y-8 text-gray-300 leading-relaxed">
+                        <section>
+                            <div class="flex items-center gap-2 mb-3">
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400 uppercase tracking-wide">Status:
+                                    Draft</span>
+                                <span
+                                    class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/20 text-primary uppercase tracking-wide">Priority:
+                                    P0</span>
+                            </div>
+                            <p class="text-lg text-text-muted font-light">
+                                This document outlines the technical and functional requirements for the new Engineering
+                                Workspace module. The goal is to unify documentation, code exploration, and AI
+                                assistance into a single view.
+                            </p>
+                        </section>
+                        <section>
+                            <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                                <span class="text-primary">#</span> Core Features
+                            </h2>
+                            <ul class="space-y-3 list-none pl-1">
+                                <li class="flex gap-3 items-start">
+                                    <span class="mt-1.5 size-1.5 rounded-full bg-primary flex-none"></span>
+                                    <span><strong class="text-white">Three-Column Layout:</strong> A responsive grid
+                                        system that handles file navigation, main editing canvas, and auxiliary tools
+                                        simultaneously.</span>
+                                </li>
+                                <li class="flex gap-3 items-start">
+                                    <span class="mt-1.5 size-1.5 rounded-full bg-primary flex-none"></span>
+                                    <span><strong class="text-white">Context-Aware AI:</strong> The right sidebar must
+                                        have read-access to the open document to provide relevant suggestions.</span>
+                                </li>
+                                <li class="flex gap-3 items-start">
+                                    <span class="mt-1.5 size-1.5 rounded-full bg-primary flex-none"></span>
+                                    <span><strong class="text-white">Real-time Collaboration:</strong> WebSocket based
+                                        cursor tracking and diff syncing using OT (Operational Transformation).</span>
+                                </li>
+                            </ul>
+                        </section>
+                        <section>
+                            <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                                <span class="text-primary">#</span> API Contract
+                            </h2>
+                            <p class="mb-4 text-sm text-text-muted">The backend endpoints needed for the file explorer
+                                hydration.</p>
+                            <!-- Code Block -->
+                            <div class="rounded-lg bg-[#0d0d1a] border border-border-dark overflow-hidden group">
+                                <div
+                                    class="flex items-center justify-between px-4 py-2 bg-surface-dark border-b border-border-dark">
+                                    <span class="text-xs text-text-muted font-mono">Typescript</span>
+                                    <span
+                                        class="material-symbols-outlined text-[16px] text-text-muted cursor-pointer hover:text-white">content_copy</span>
+                                </div>
+                                <div class="p-4 font-mono text-sm overflow-x-auto">
+                                    <pre><code class="language-typescript"><span class="text-purple-400">interface</span> <span class="text-yellow-400">FileSystemNode</span> {
+  <span class="text-blue-400">id</span>: <span class="text-green-400">string</span>;
+  <span class="text-blue-400">name</span>: <span class="text-green-400">string</span>;
+  <span class="text-blue-400">type</span>: <span class="text-green-400">'file'</span> | <span class="text-green-400">'folder'</span>;
+  <span class="text-blue-400">children</span>?: <span class="text-yellow-400">FileSystemNode</span>[];
+  <span class="text-blue-400">metadata</span>: {
+    <span class="text-blue-400">lastModified</span>: <span class="text-green-400">Date</span>;
+    <span class="text-blue-400">authorId</span>: <span class="text-green-400">string</span>;
+  };
+}</code></pre>
+                                </div>
+                            </div>
+                        </section>
+                        <section>
+                            <h2 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                                <span class="text-primary">#</span> UX/UI Notes
+                            </h2>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="p-4 rounded-lg bg-surface-dark border border-border-dark">
+                                    <div class="flex items-center gap-2 mb-2 text-white font-medium">
+                                        <span class="material-symbols-outlined text-purple-400">palette</span> Dark Mode
+                                    </div>
+                                    <p class="text-sm text-text-muted">Ensure all surfaces comply with WCAG AA contrast
+                                        ratios on dark backgrounds.</p>
+                                </div>
+                                <div class="p-4 rounded-lg bg-surface-dark border border-border-dark">
+                                    <div class="flex items-center gap-2 mb-2 text-white font-medium">
+                                        <span class="material-symbols-outlined text-blue-400">speed</span> Performance
+                                    </div>
+                                    <p class="text-sm text-text-muted">Tree virtualization required for repositories
+                                        with &gt;1000 files.</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- Right Sidebar: AI Chat -->
+        <aside
+            class="w-[350px] flex-none flex flex-col border-l border-border-dark bg-surface-dark relative z-10 shadow-[-10px_0_30px_-10px_rgba(0,0,0,0.5)]">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-4 border-b border-border-dark bg-surface-dark">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-400 icon-filled">smart_toy</span>
+                    <span class="text-white font-semibold">AI Assistant</span>
+                </div>
+                <div class="flex gap-2">
+                    <span
+                        class="material-symbols-outlined text-text-muted hover:text-white cursor-pointer text-[20px]">history</span>
+                    <span
+                        class="material-symbols-outlined text-text-muted hover:text-white cursor-pointer text-[20px]">close</span>
+                </div>
+            </div>
+            <!-- Chat History -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Bot Message -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="size-6 rounded bg-purple-500/20 flex items-center justify-center text-purple-400">
+                            <span class="material-symbols-outlined text-[14px]">smart_toy</span>
+                        </div>
+                        <span class="text-xs text-text-muted">AI Copilot</span>
+                    </div>
+                    <div
+                        class="ml-8 p-3 bg-border-dark/30 rounded-lg rounded-tl-none border border-border-dark/50 text-sm text-gray-300 leading-relaxed">
+                        I've analyzed the PRD draft. The API contract looks solid, but you might want to add a <code
+                            class="bg-black/30 px-1 py-0.5 rounded text-purple-300 font-mono text-xs">permissions</code>
+                        field to the <code
+                            class="bg-black/30 px-1 py-0.5 rounded text-purple-300 font-mono text-xs">FileSystemNode</code>
+                        interface to handle RBAC requirements mentioned in the Security section.
+                    </div>
+                </div>
+                <!-- User Message -->
+                <div class="flex flex-col gap-2 items-end">
+                    <div class="flex items-center gap-2 flex-row-reverse">
+                        <div class="size-6 rounded bg-primary/20 flex items-center justify-center text-primary">
+                            <span class="material-symbols-outlined text-[14px] icon-filled">person</span>
+                        </div>
+                        <span class="text-xs text-text-muted">You</span>
+                    </div>
+                    <div
+                        class="mr-8 p-3 bg-primary/10 rounded-lg rounded-tr-none border border-primary/30 text-sm text-white leading-relaxed">
+                        Good catch. Can you generate the updated interface and also suggest a mock JSON response for a
+                        folder containing 3 files?
+                    </div>
+                </div>
+                <!-- Bot Message with Typing Indicator -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="size-6 rounded bg-purple-500/20 flex items-center justify-center text-purple-400">
+                            <span class="material-symbols-outlined text-[14px]">smart_toy</span>
+                        </div>
+                        <span class="text-xs text-text-muted">AI Copilot</span>
+                    </div>
+                    <div
+                        class="ml-8 p-3 bg-border-dark/30 rounded-lg rounded-tl-none border border-border-dark/50 text-sm text-gray-300">
+                        <p class="mb-2">Certainly. Here is the updated Typescript interface:</p>
+                        <div class="bg-black/40 rounded p-2 mb-2 border border-border-dark">
+                            <pre class="font-mono text-xs overflow-x-auto text-purple-200">interface FileSystemNode {
+  // ... previous fields
+  permissions: 'r' | 'w' | 'rw';
+}</pre>
+                        </div>
+                        <p>And here is the mock JSON data:</p>
+                        <div class="flex gap-1 mt-2">
+                            <span class="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse"></span>
+                            <span class="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse delay-75"></span>
+                            <span class="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse delay-150"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Input Area -->
+            <div class="p-4 border-t border-border-dark bg-surface-dark">
+                <div class="relative">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent rounded-lg pointer-events-none">
+                    </div>
+                    <textarea
+                        class="w-full bg-[#0d0d1a] border border-border-dark rounded-lg pl-3 pr-10 py-3 text-sm text-white placeholder-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary resize-none h-[80px]"
+                        placeholder="Ask about this document or generate code..."></textarea>
+                    <button
+                        class="absolute bottom-3 right-3 p-1.5 bg-primary hover:bg-blue-600 rounded text-white transition-colors shadow-lg">
+                        <span class="material-symbols-outlined text-[16px] block">arrow_upward</span>
+                    </button>
+                </div>
+                <div class="flex items-center justify-between mt-2 px-1">
+                    <div class="flex gap-2 text-[10px] text-text-muted">
+                        <span class="flex items-center gap-1 cursor-pointer hover:text-white"><span
+                                class="material-symbols-outlined text-[12px]">code</span> Codebase</span>
+                        <span class="flex items-center gap-1 cursor-pointer hover:text-white"><span
+                                class="material-symbols-outlined text-[12px]">description</span> PRD.md</span>
+                    </div>
+                    <span class="text-[10px] text-text-muted">GPT-4o</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+</body>
+
+</html>

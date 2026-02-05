@@ -1,26 +1,627 @@
 @import "tailwindcss";
 
+/* VS Code Dark Theme Colors */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --primary: #0078d4;
+  /* VS Code blue accent */
+  --background-light: #ffffff;
+  --background-dark: #1e1e1e;
+  /* VS Code editor background */
+  --surface-dark: #252526;
+  /* VS Code sidebar background */
+  --border-dark: #3c3c3c;
+  /* VS Code borders */
+  --text-muted: #858585;
+  /* VS Code muted text */
+  --text-primary: #cccccc;
+  /* VS Code primary text */
+  --accent-blue: #569cd6;
+  /* VS Code blue */
+  --accent-green: #4ec9b0;
+  /* VS Code teal */
+  --accent-yellow: #dcdcaa;
+  /* VS Code yellow */
+  --accent-orange: #ce9178;
+  /* VS Code orange */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-background-light: var(--background-light);
+  --color-background-dark: var(--background-dark);
+  --color-surface-dark: var(--surface-dark);
+  --color-border-dark: var(--border-dark);
+  --color-text-muted: var(--text-muted);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Custom Scrollbar - VS Code style */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4f4f4f;
+}
+
+/* Material Symbols Configuration */
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+  font-size: 20px;
+}
+
+.icon-filled {
+  font-variation-settings: 'FILL' 1;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--background-dark);
+  color: #cccccc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Tiptap Editor Styles */
+.tiptap-editor {
+  outline: none;
+  color: #d4d4d4;
+}
+
+.tiptap-editor:focus {
+  outline: none;
+}
+
+.tiptap-editor p {
+  margin-bottom: 1rem;
+}
+
+.tiptap-editor h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.tiptap-editor h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+}
+
+.tiptap-editor ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.tiptap-editor code {
+  background: #2d2d2d;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.875rem;
+  color: #ce9178;
+}
+
+.tiptap-editor pre {
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  border-radius: 0.25rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.tiptap-editor pre code {
+  background: none;
+  padding: 0;
+  color: #d4d4d4;
+}
+
+/* reactjs-tiptap-editor Dark Theme Overrides */
+.editor-toolbar button {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  padding: 0.375rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.editor-toolbar button:hover {
+  background: #3c3c3c;
+}
+
+.editor-toolbar button[data-active="true"],
+.editor-toolbar button.is-active {
+  background: #0078d4;
+  color: white;
+}
+
+/* Task List Checkboxes */
+.tiptap-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tiptap-editor ul[data-type="taskList"] li input[type="checkbox"] {
+  margin-top: 0.25rem;
+  width: 1rem;
+  height: 1rem;
+  accent-color: #0078d4;
+  cursor: pointer;
+}
+
+.tiptap-editor ul[data-type="taskList"] li[data-checked="true"]>div {
+  text-decoration: line-through;
+  color: #858585;
+}
+
+/* Table Styles */
+.tiptap-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.tiptap-editor table td,
+.tiptap-editor table th {
+  border: 1px solid #3c3c3c;
+  padding: 0.5rem;
+  min-width: 100px;
+}
+
+.tiptap-editor table th {
+  background: #252526;
+  font-weight: 600;
+}
+
+.tiptap-editor table td {
+  background: #1e1e1e;
+}
+
+/* Blockquote */
+.tiptap-editor blockquote {
+  border-left: 3px solid #0078d4;
+  padding-left: 1rem;
+  margin-left: 0;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+/* Heading Colors */
+.tiptap-editor h1,
+.tiptap-editor h2,
+.tiptap-editor h3 {
+  color: #ffffff;
+}
+
+.tiptap-editor h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+/* Link Styles */
+.tiptap-editor a {
+  color: #569cd6;
+  text-decoration: underline;
+}
+
+.tiptap-editor a:hover {
+  color: #6cb6ff;
+}
+
+/* Horizontal Rule */
+.tiptap-editor hr {
+  border: none;
+  border-top: 1px solid #3c3c3c;
+  margin: 1.5rem 0;
+}
+
+/* Text alignment */
+.tiptap-editor .text-left {
+  text-align: left;
+}
+
+.tiptap-editor .text-center {
+  text-align: center;
+}
+
+.tiptap-editor .text-right {
+  text-align: right;
+}
+
+.tiptap-editor .text-justify {
+  text-align: justify;
+}
+
+/* ============================================
+   Novel Editor / ProseMirror Styles
+   ============================================ */
+
+.novel-editor .ProseMirror {
+  @apply p-8;
+  min-height: 500px;
+}
+
+.novel-editor .ProseMirror .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #858585;
+  pointer-events: none;
+  height: 0;
+}
+
+.novel-editor .ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #858585;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Heading styles */
+.novel-editor .ProseMirror h1 {
+  @apply text-3xl font-bold mb-4;
+  color: #ffffff;
+}
+
+.novel-editor .ProseMirror h2 {
+  @apply text-2xl font-semibold mb-3;
+  color: #ffffff;
+}
+
+.novel-editor .ProseMirror h3 {
+  @apply text-xl font-semibold mb-2;
+  color: #ffffff;
+}
+
+.novel-editor .ProseMirror p {
+  @apply mb-4 leading-relaxed;
+  color: #d4d4d4;
+}
+
+/* List styles */
+.novel-editor .ProseMirror ul {
+  @apply list-disc pl-6 mb-4;
+}
+
+.novel-editor .ProseMirror ol {
+  @apply list-decimal pl-6 mb-4;
+}
+
+.novel-editor .ProseMirror li {
+  @apply mb-1;
+}
+
+/* Task list checkboxes */
+.novel-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.novel-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.novel-editor ul[data-type="taskList"] li>label {
+  margin-right: 0.2rem;
+  user-select: none;
+}
+
+.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #1e1e1e;
+  margin: 0;
+  cursor: pointer;
+  width: 1.2em;
+  height: 1.2em;
+  position: relative;
+  top: 4px;
+  border: 2px solid #3c3c3c;
+  border-radius: 3px;
+  margin-right: 0.3rem;
+  display: grid;
+  place-content: center;
+}
+
+.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]:hover {
+  background-color: #3c3c3c;
+}
+
+.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]::before {
+  content: "";
+  width: 0.65em;
+  height: 0.65em;
+  transform: scale(0);
+  transition: 120ms transform ease-in-out;
+  box-shadow: inset 1em 1em #0078d4;
+  transform-origin: center;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]:checked::before {
+  transform: scale(1);
+}
+
+.novel-editor ul[data-type="taskList"] li[data-checked="true"]>div>p {
+  color: #858585;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+/* Blockquote */
+.novel-editor .ProseMirror blockquote {
+  @apply border-l-4 pl-4 my-4 italic;
+  border-color: #0078d4;
+  color: #a0a0a0;
+}
+
+/* Code block */
+.novel-editor .ProseMirror pre {
+  @apply rounded-lg p-4 my-4 overflow-x-auto;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+}
+
+.novel-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+/* Inline code */
+.novel-editor .ProseMirror code {
+  @apply px-1.5 py-0.5 rounded;
+  background: #2d2d2d;
+  color: #ce9178;
+  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.875rem;
+}
+
+.novel-editor .ProseMirror pre code {
+  background: transparent;
+  color: #d4d4d4;
+}
+
+/* Horizontal rule */
+.novel-editor .ProseMirror hr {
+  @apply my-6;
+  border: none;
+  border-top: 1px solid #3c3c3c;
+}
+
+/* Links */
+.novel-editor .ProseMirror a {
+  color: #569cd6;
+  text-decoration: underline;
+}
+
+.novel-editor .ProseMirror a:hover {
+  color: #6cb6ff;
+}
+
+/* Images */
+.novel-editor .ProseMirror img {
+  @apply rounded-lg my-4;
+  max-width: 100%;
+  height: auto;
+  transition: filter 0.1s ease-in-out;
+}
+
+.novel-editor .ProseMirror img:hover {
+  cursor: pointer;
+  filter: brightness(90%);
+}
+
+.novel-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 3px solid #0078d4;
+  filter: brightness(90%);
+}
+
+/* Image placeholder loading */
+.novel-editor .img-placeholder {
+  position: relative;
+}
+
+.novel-editor .img-placeholder::before {
+  content: "";
+  box-sizing: border-box;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid #3c3c3c;
+  border-top-color: #0078d4;
+  animation: spinning 0.6s linear infinite;
+}
+
+@keyframes spinning {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Drag handle */
+.novel-editor .drag-handle {
+  position: fixed;
+  opacity: 1;
+  transition: opacity ease-in 0.2s;
+  border-radius: 0.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' style='fill: rgba(255, 255, 255, 0.5)'%3E%3Cpath d='M3,2 C2.44771525,2 2,1.55228475 2,1 C2,0.44771525 2.44771525,0 3,0 C3.55228475,0 4,0.44771525 4,1 C4,1.55228475 3.55228475,2 3,2 Z M3,6 C2.44771525,6 2,5.55228475 2,5 C2,4.44771525 2.44771525,4 3,4 C3.55228475,4 4,4.44771525 4,5 C4,5.55228475 3.55228475,6 3,6 Z M3,10 C2.44771525,10 2,9.55228475 2,9 C2,8.44771525 2.44771525,8 3,8 C3.55228475,8 4,8.44771525 4,9 C4,9.55228475 3.55228475,10 3,10 Z M7,2 C6.44771525,2 6,1.55228475 6,1 C6,0.44771525 6.44771525,0 7,0 C7.55228475,0 8,0.44771525 8,1 C8,1.55228475 7.55228475,2 7,2 Z M7,6 C6.44771525,6 6,5.55228475 6,5 C6,4.44771525 6.44771525,4 7,4 C7.55228475,4 8,4.44771525 8,5 C8,5.55228475 7.55228475,6 7,6 Z M7,10 C6.44771525,10 6,9.55228475 6,9 C6,8.44771525 6.44771525,8 7,8 C7.55228475,8 8,8.44771525 8,9 C8,9.55228475 7.55228475,10 7,10 Z'%3E%3C/path%3E%3C/svg%3E");
+  background-size: calc(0.5em + 0.375rem) calc(0.5em + 0.375rem);
+  background-repeat: no-repeat;
+  background-position: center;
+  width: 1.2rem;
+  height: 1.5rem;
+  z-index: 50;
+  cursor: grab;
+}
+
+.novel-editor .drag-handle:hover {
+  background-color: #3c3c3c;
+  transition: background-color 0.2s;
+}
+
+.novel-editor .drag-handle:active {
+  background-color: #4c4c4c;
+  cursor: grabbing;
+}
+
+.novel-editor .drag-handle.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Selected node highlight */
+.novel-editor .ProseMirror:not(.dragging) .ProseMirror-selectednode {
+  outline: none !important;
+  background-color: rgba(0, 120, 212, 0.15);
+  transition: background-color 0.2s;
+  box-shadow: none;
+}
+
+/* Tippy.js base styles */
+.tippy-box {
+  position: relative;
+  background-color: transparent;
+  color: #cccccc;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: normal;
+  outline: 0;
+  max-width: 400px !important;
+}
+
+.tippy-box[data-placement^=top]>.tippy-arrow {
+  bottom: 0
+}
+
+.tippy-box[data-placement^=top]>.tippy-arrow:before {
+  bottom: -7px;
+  left: 0;
+  border-width: 8px 8px 0;
+  border-top-color: initial;
+  transform-origin: center top
+}
+
+.tippy-box[data-placement^=bottom]>.tippy-arrow {
+  top: 0
+}
+
+.tippy-box[data-placement^=bottom]>.tippy-arrow:before {
+  top: -7px;
+  left: 0;
+  border-width: 0 8px 8px;
+  border-bottom-color: initial;
+  transform-origin: center bottom
+}
+
+.tippy-content {
+  padding: 0;
+}
+
+[data-tippy-root] {
+  max-width: calc(100vw - 10px);
+  z-index: 9999;
+}
+
+/* Slash command popup styles */
+.novel-editor [data-novel-command],
+[data-radix-popper-content-wrapper] {
+  z-index: 9999;
+}
+
+/* Slash command list styling */
+.novel-slash-command {
+  background-color: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  padding: 4px;
+  max-height: 330px;
+  overflow-y: auto;
+}
+
+.novel-slash-command-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #cccccc;
+  transition: background-color 0.15s ease;
+}
+
+.novel-slash-command-item:hover,
+.novel-slash-command-item[aria-selected="true"] {
+  background-color: #3c3c3c;
+}
+
+.novel-slash-command-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #3c3c3c;
+  background-color: #1e1e1e;
+  color: #cccccc;
+}
+
+.novel-slash-command-item-title {
+  font-weight: 500;
+  font-size: 14px;
+  color: #cccccc;
+}
+
+.novel-slash-command-item-description {
+  font-size: 12px;
+  color: #858585;
+}
+
+.novel-slash-command-empty {
+  padding: 12px 16px;
+  color: #858585;
+  text-align: center;
+}
+
+/* Highlight mark */
+.novel-editor .ProseMirror mark {
+  background-color: #264f78;
+  border-radius: 2px;
+  padding: 0 2px;
 }
