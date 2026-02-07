@@ -31,6 +31,7 @@ interface FileExplorerProps {
     onDelete?: (id: string) => Promise<void>;
     onMove?: (id: string, newParentId: string | null) => Promise<void>;
     workspaceName?: string;
+    onRenameWorkspace?: (newName: string) => Promise<void>;
     onWorkspaceSwitch?: () => void;
 }
 
@@ -210,13 +211,26 @@ function FileTreeItem({
 
 export function FileExplorer({
     files, selectedFile, onFileSelect, onCreateNode, onUpload,
-    onRename, onDelete, onMove, workspaceName = "Marketing Team"
+    onRename, onDelete, onMove, workspaceName = "Workspace", onRenameWorkspace
 }: FileExplorerProps) {
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<FileNode | null>(null);
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isEditingWorkspace, setIsEditingWorkspace] = useState(false);
+    const [workspaceNameInput, setWorkspaceNameInput] = useState(workspaceName);
+
+    useEffect(() => {
+        setWorkspaceNameInput(workspaceName);
+    }, [workspaceName]);
+
+    const handleWorkspaceRenameSubmit = async () => {
+        if (workspaceNameInput.trim() && workspaceNameInput !== workspaceName && onRenameWorkspace) {
+            await onRenameWorkspace(workspaceNameInput);
+        }
+        setIsEditingWorkspace(false);
+    };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -280,7 +294,32 @@ export function FileExplorer({
                         <span className="w-5 h-5 bg-gray-200 rounded flex items-center justify-center text-gray-600 text-[10px] font-bold">
                             {workspaceName.charAt(0)}
                         </span>
-                        <span>{workspaceName}</span>
+                        {isEditingWorkspace ? (
+                            <input
+                                autoFocus
+                                type="text"
+                                value={workspaceNameInput}
+                                onChange={(e) => setWorkspaceNameInput(e.target.value)}
+                                onBlur={handleWorkspaceRenameSubmit}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleWorkspaceRenameSubmit();
+                                    if (e.key === 'Escape') {
+                                        setWorkspaceNameInput(workspaceName);
+                                        setIsEditingWorkspace(false);
+                                    }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-white text-gray-900 text-sm px-1 py-0 outline-none border border-indigo-500 rounded min-w-[100px]"
+                            />
+                        ) : (
+                            <span
+                                onDoubleClick={() => onRenameWorkspace && setIsEditingWorkspace(true)}
+                                className={onRenameWorkspace ? "cursor-text truncate max-w-[140px]" : "truncate max-w-[140px]"}
+                                title={onRenameWorkspace ? "Double click to rename" : undefined}
+                            >
+                                {workspaceName}
+                            </span>
+                        )}
                     </div>
                     <ChevronDown className="w-4 h-4 text-gray-400" />
                 </button>
@@ -319,14 +358,14 @@ export function FileExplorer({
                             />
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity"
+                                className="text-gray-400 hover:text-gray-700 transition-opacity"
                                 title="Upload file"
                             >
                                 <UploadCloud className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={() => onCreateNode?.('file')}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity"
+                                className="text-gray-400 hover:text-gray-700 transition-opacity"
                                 title="New document"
                             >
                                 <Plus className="w-3.5 h-3.5" />
@@ -372,7 +411,7 @@ export function FileExplorer({
                             </span>
                             <button
                                 onClick={() => onCreateNode?.('folder')}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity"
+                                className="text-gray-400 hover:text-gray-700 transition-opacity"
                             >
                                 <Plus className="w-3.5 h-3.5" />
                             </button>

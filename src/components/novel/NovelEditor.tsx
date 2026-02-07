@@ -60,7 +60,6 @@ export function NovelEditor({
     const [openNode, setOpenNode] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
-    const [ghostTextEnabled, setGhostTextEnabled] = useState(enableGhostText);
     const editorRef = useRef<HTMLDivElement>(null);
 
     // Ghost text hook
@@ -71,7 +70,7 @@ export function NovelEditor({
         accept: acceptGhost,
         dismiss: dismissGhost
     } = useGhostText({
-        enabled: ghostTextEnabled,
+        enabled: enableGhostText,
         model: ghostTextModel,
         context: file ? { fileName: file.name, fileContent: content?.slice(0, 2000) } : undefined
     });
@@ -146,23 +145,55 @@ export function NovelEditor({
         }
     }, [editorInstance, onFileImport]);
 
+    // Basic Markdown to HTML converter
     const markdownToHtml = (md: string): string => {
-        return md
+        if (!md) return '';
+
+        // First, handle code blocks to avoid messing with their content
+        const codeBlocks: string[] = [];
+        let html = md.replace(/```([\s\S]*?)```/g, (match, code) => {
+            codeBlocks.push(code);
+            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+        });
+
+        // Handle inline code
+        const inlineCode: string[] = [];
+        html = html.replace(/`([^`]+)`/g, (match, code) => {
+            inlineCode.push(code);
+            return `__INLINE_CODE_${inlineCode.length - 1}__`;
+        });
+
+        html = html
+            // Headers
             .replace(/^### (.*$)/gm, '<h3>$1</h3>')
             .replace(/^## (.*$)/gm, '<h2>$1</h2>')
             .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            // Bold
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+            // Italic
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
+            .replace(/_([^_]+)_/g, '<em>$1</em>')
+            // Links
+            .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            // Lists
             .replace(/^\- (.*$)/gm, '<li>$1</li>')
             .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/^(.+)$/gm, (match) => {
-                if (match.startsWith('<')) return match;
-                return `<p>${match}</p>`;
-            });
+            // Restore code blocks
+            .replace(/__CODE_BLOCK_(\d+)__/g, (match, index) => `<pre><code>${codeBlocks[parseInt(index)]}</code></pre>`)
+            // Restore inline code
+            .replace(/__INLINE_CODE_(\d+)__/g, (match, index) => `<code>${inlineCode[parseInt(index)]}</code>`);
+
+        // Only wrap in paragraphs if there are double newlines and it's not already wrapped
+        if (html.includes('\n\n')) {
+            html = html.replace(/\n\n/g, '</p><p>');
+            // Wrap the whole thing in p if not starting with a block tag
+            if (!/^<(h[1-6]|pre|ul|ol|li)/.test(html)) {
+                html = `<p>${html}</p>`;
+            }
+        }
+
+        return html;
     };
 
     // Apply inline tracked change to editor using styled markers
@@ -177,24 +208,42 @@ export function NovelEditor({
         let foundPos: number | null = null;
         let foundEndPos: number | null = null;
 
+        // Normalize text checks to handle some whitespace variance and HTML tags
+        // If original looks like HTML (starts with <), strip tags to extract text content
+        let searchOriginal = original;
+        if (original.trim().startsWith('<') && original.includes('>')) {
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = original;
+                searchOriginal = tempDiv.textContent || original;
+                console.log("applyInlineChange: Stripped HTML from original:", original, "->", searchOriginal);
+            } catch (e) {
+                console.warn("applyInlineChange: Failed to strip HTML", e);
+            }
+        }
+
         doc.descendants((node, pos) => {
             if (foundPos !== null) return false; // Already found
             if (node.isText && node.text) {
-                const index = node.text.indexOf(original);
+                const index = node.text.indexOf(searchOriginal);
                 if (index !== -1) {
                     foundPos = pos + index;
-                    foundEndPos = foundPos + original.length;
+                    foundEndPos = foundPos + searchOriginal.length;
                     return false; // Stop searching
                 }
             }
         });
 
         if (foundPos === null || foundEndPos === null) {
-            console.warn("applyInlineChange: Could not find original text in document:", original);
+            console.warn("applyInlineChange: Could not find original text in document:", searchOriginal);
             return false;
         }
 
         console.log("applyInlineChange: Found text at position", foundPos, "to", foundEndPos);
+
+        // Convert suggested text from Markdown to HTML for rendering
+        const suggestedHtml = markdownToHtml(suggested);
+        console.log("applyInlineChange: Converted suggested text to HTML:", suggestedHtml);
 
         // Replace the original text with the inlineDiff node
         try {
@@ -206,7 +255,7 @@ export function NovelEditor({
                     type: "inlineDiff",
                     attrs: {
                         original,
-                        suggested,
+                        suggested: suggestedHtml, // Store HTML in attribute
                         changeId,
                     }
                 })
@@ -272,8 +321,10 @@ export function NovelEditor({
                         characters: text.length,
                     };
                 },
-                insertText: (text: string) =>
-                    editorInstance.chain().focus().insertContent(text).run(),
+                insertText: (text: string) => {
+                    const html = markdownToHtml(text);
+                    editorInstance.chain().focus().insertContent(html).run();
+                },
                 applyInlineChange,
             };
             onEditorReady(actions);
@@ -281,10 +332,24 @@ export function NovelEditor({
     }, [editorInstance, onEditorReady]);
 
     useEffect(() => {
-        if (editorInstance && content !== editorInstance.getHTML()) {
-            editorInstance.commands.setContent(content);
+        if (editorInstance && file) {
+            let contentToSet = content;
+            const extension = file.name.split('.').pop()?.toLowerCase();
+
+            // If it's a markdown file, convert to HTML for display
+            if (extension === 'md' || extension === 'markdown') {
+                // Check if it already looks like HTML (starts with <) to avoid double conversion
+                if (content && !content.trim().startsWith('<')) {
+                    contentToSet = markdownToHtml(content);
+                }
+            }
+
+            // Only update if content is different to avoid cursor jumping
+            if (contentToSet !== editorInstance.getHTML()) {
+                editorInstance.commands.setContent(contentToSet);
+            }
         }
-    }, [content, editorInstance]);
+    }, [content, editorInstance, file]);
 
     if (!file) {
         return (
@@ -370,7 +435,7 @@ export function NovelEditor({
                             onContentChange(html);
 
                             // Trigger ghost text suggestion after a pause
-                            if (ghostTextEnabled) {
+                            if (enableGhostText) {
                                 const text = editor.getText();
                                 const cursorPos = editor.state.selection.from;
                                 triggerSuggestion(text, cursorPos);
@@ -426,50 +491,7 @@ export function NovelEditor({
                     </EditorContent>
                 </EditorRoot>
 
-                {/* Autocomplete Toggle & Ghost Text Indicator */}
-                <div className="fixed bottom-24 right-[340px] z-50 flex items-center gap-2">
-                    {/* Toggle Button */}
-                    <button
-                        onClick={() => setGhostTextEnabled(!ghostTextEnabled)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border shadow-sm text-xs font-medium transition-colors ${ghostTextEnabled
-                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                            }`}
-                        title={ghostTextEnabled ? 'Disable autocomplete' : 'Enable autocomplete'}
-                    >
-                        {ghostTextEnabled ? (
-                            <ToggleRight className="w-4 h-4" />
-                        ) : (
-                            <ToggleLeft className="w-4 h-4" />
-                        )}
-                        <span>Autocomplete</span>
-                    </button>
 
-                    {/* Suggestion Popup */}
-                    {(ghostSuggestion || ghostLoading) && (
-                        <div className="bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 max-w-sm">
-                            {ghostLoading ? (
-                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <span className="inline-block w-3 h-3 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
-                                    <span>Thinking...</span>
-                                </div>
-                            ) : ghostSuggestion ? (
-                                <div>
-                                    <p className="text-sm text-gray-600 italic mb-1">
-                                        {ghostSuggestion.length > 80 ? ghostSuggestion.slice(0, 80) + "..." : ghostSuggestion}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">Tab</kbd>
-                                        <span>to accept</span>
-                                        <span className="mx-1">•</span>
-                                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">Esc</kbd>
-                                        <span>to dismiss</span>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </div>
-                    )}
-                </div>
             </div>
         </main>
     );

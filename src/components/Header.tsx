@@ -1,6 +1,8 @@
 "use client";
 
 import { Menu, ChevronRight, Share2 } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 
 interface HeaderProps {
     workspaceName?: string;
@@ -9,6 +11,7 @@ interface HeaderProps {
     isSaved?: boolean;
     onMenuClick?: () => void;
     onShare?: () => void;
+    onRenameWorkspace?: (newName: string) => void;
     userAvatar?: string;
 }
 
@@ -19,8 +22,41 @@ export function Header({
     isSaved = true,
     onMenuClick,
     onShare,
+    onRenameWorkspace,
     userAvatar,
 }: HeaderProps) {
+    const [isEditing, setIsEditing] = useState(false);
+    const [nameInput, setNameInput] = useState(projectName);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setNameInput(projectName);
+    }, [projectName]);
+
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isEditing]);
+
+    const handleSubmit = () => {
+        setIsEditing(false);
+        if (nameInput.trim() && nameInput !== projectName) {
+            onRenameWorkspace?.(nameInput);
+        } else {
+            setNameInput(projectName);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSubmit();
+        } else if (e.key === 'Escape') {
+            setIsEditing(false);
+            setNameInput(projectName);
+        }
+    };
+
     return (
         <header className="h-12 flex-none bg-white border-b border-border flex items-center justify-between px-4 z-30">
             {/* Left side - Menu, Breadcrumbs, Title */}
@@ -33,11 +69,14 @@ export function Header({
                 </button>
 
                 {/* Breadcrumbs */}
+                {/* Breadcrumbs */}
+                {/* Breadcrumbs */}
+                {/* Breadcrumbs */}
                 <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>{workspaceName}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                    <span>{projectName}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <Link href="/dashboard" className="hover:text-gray-900 transition-colors font-medium">
+                        {workspaceName}
+                    </Link>
+                    <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
                 </div>
 
                 {/* Document Title */}

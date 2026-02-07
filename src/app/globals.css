@@ -5,8 +5,19 @@
    ============================================ */
 
 :root {
-  /* Primary Colors */
-  --primary: #111318;
+  /* New Dashboard Colors */
+  --primary: #2b6cee;
+  --primary-hover: #1d4ed8;
+  --background-light: #ffffff;
+  --background-dark: #101622;
+  --surface-light: #f9fafb;
+  --surface-dark: #1a2230;
+  --border-light: #e5e7eb;
+  --border-dark: #2d3748;
+
+  /* Legacy mapppings for compatibility or gradual migration */
+  --legacy-primary: #111318;
+  /* --primary: #111318; */
   /* Near black - main text */
   --primary-light: #f3f4f6;
   /* Gray-100 - light surfaces */
@@ -26,7 +37,7 @@
   /* Borders */
   --border: #e5e7eb;
   /* Gray-200 */
-  --border-light: #f3f4f6;
+  /* --border-light: #f3f4f6; */
   /* Gray-100 */
 
   /* Text */
@@ -66,6 +77,16 @@
   /* Red-800 */
   --diff-removed-border: #dc2626;
   /* Red-600 */
+}
+
+/* Dark mode overrides */
+.dark {
+  --background: var(--background-dark);
+  --surface: var(--surface-dark);
+  --border: var(--border-dark);
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
 }
 
 @theme inline {
@@ -325,11 +346,12 @@ body {
 }
 
 /* Headings */
+/* Headings */
 .novel-editor .ProseMirror h1 {
   font-family: 'Merriweather', serif;
   font-size: 2.25rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #111318 !important;
   margin-bottom: 1rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -339,7 +361,7 @@ body {
   font-family: 'Merriweather', serif;
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #111318 !important;
   margin-top: 2rem;
   margin-bottom: 0.75rem;
 }
@@ -348,7 +370,7 @@ body {
   font-family: 'Merriweather', serif;
   font-size: 1.25rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: #111318 !important;
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
 }
@@ -667,11 +689,12 @@ body {
 }
 
 .tool-call-card {
-  background: var(--surface);
+  background: white;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .tool-call-card.running {

@@ -13,7 +13,7 @@ import type { EditorActions } from "@/components/novel";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { buildFileTree } from "@/lib/utils/file-tree";
-import { createDocument, updateDocumentContent, renameDocument, deleteDocument, moveDocument, importDocument } from "./actions";
+import { createDocument, updateDocumentContent, renameDocument, deleteDocument, moveDocument, importDocument, getWorkspace, renameWorkspace } from "./actions";
 import { uploadFile } from "@/lib/storage";
 import { useAutosave, type SaveStatus } from "@/lib/hooks/use-autosave";
 
@@ -40,6 +40,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
     const { workspaceId } = use(params);
 
     const [files, setFiles] = useState<FileNode[]>([]);
+    const [workspace, setWorkspace] = useState<{ id: string; name: string } | null>(null);
     const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
     const [editorContent, setEditorContent] = useState<string>("");
     const [editorActions, setEditorActions] = useState<EditorActions | null>(null);
@@ -49,6 +50,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [ghostTextEnabled, setGhostTextEnabled] = useState(true);
     const [uploadStatus, setUploadStatus] = useState<{ uploading: boolean; message: string }>({ uploading: false, message: '' });
 
     // Keep ref in sync with state
@@ -93,9 +95,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         setLoading(false);
     }, [workspaceId]);
 
+    const fetchWorkspace = useCallback(async () => {
+        try {
+            const data = await getWorkspace(workspaceId);
+            setWorkspace(data);
+        } catch (e) {
+            console.error("Failed to fetch workspace", e);
+        }
+    }, [workspaceId]);
+
     useEffect(() => {
         fetchFiles();
-    }, [fetchFiles]);
+        fetchWorkspace();
+    }, [fetchFiles, fetchWorkspace]);
 
     // -- Handlers --
 
@@ -179,6 +191,15 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         }
     };
 
+    const handleWorkspaceRename = async (newName: string) => {
+        try {
+            await renameWorkspace(workspaceId, newName);
+            await fetchWorkspace();
+        } catch (e) {
+            console.error("Workspace rename failed", e);
+        }
+    };
+
     const handleInsertText = useCallback((text: string) => {
         if (editorActions) {
             editorActions.insertText(text);
@@ -224,10 +245,11 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         <div className="flex flex-col h-screen overflow-hidden bg-white">
             <Header
                 workspaceName="Projects"
-                projectName="Marketing Team"
+                projectName={workspace?.name || "Untitled Workspace"}
                 documentTitle={selectedFile?.name || "Untitled Document"}
                 isSaved={saveStatus === 'saved' || saveStatus === 'idle'}
                 onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                onRenameWorkspace={handleWorkspaceRename}
             />
 
             {/* Upload Progress Toast */}
@@ -250,6 +272,8 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                         onRename={handleRename}
                         onDelete={handleDelete}
                         onMove={handleMove}
+                        workspaceName={workspace?.name || "Untitled Workspace"}
+                        onRenameWorkspace={handleWorkspaceRename}
                     />
                 )}
 
@@ -286,7 +310,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                                     content={editorContent}
                                     onContentChange={handleContentUpdate}
                                     onEditorReady={handleEditorReady}
-                                    enableGhostText={true}
+                                    enableGhostText={ghostTextEnabled}
                                 />
                             );
                         })()
@@ -304,6 +328,10 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                         saveStatus={saveStatus}
                         lastSaved={lastSaved}
                         wordCount={wordCount}
+                        isGhostTextEnabled={ghostTextEnabled}
+                        onToggleGhostText={() => setGhostTextEnabled(!ghostTextEnabled)}
+                        isAgentPanelOpen={isAgentPanelOpen}
+                        onToggleAgentPanel={() => setIsAgentPanelOpen(!isAgentPanelOpen)}
                     />
                 </div>
 
@@ -312,6 +340,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     isOpen={isAgentPanelOpen}
                     files={files}
                     onFilesChange={setFiles}
+                    onClose={() => setIsAgentPanelOpen(false)}
                     onInsertText={handleInsertText}
                     onReplaceSelection={handleReplaceSelection}
                     onSuggestEdit={handleSuggestEdit}

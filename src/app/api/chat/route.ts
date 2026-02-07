@@ -234,7 +234,22 @@ ${hasOpenFile ? '✅ A file IS open (' + currentFile?.name + ')' : '❌ No file 
 - "Should I change all instances or just the first one?"
 - "Do you want me to keep the same tone or make it more formal?"
 
+
 ---
+
+## 🎨 FORMATTING RULES (CRITICAL)
+
+### ALWAYS Use Markdown for Documents
+When generating or editing documents (reports, letters, code files, notes), **ALWAYS use rich Markdown formatting**:
+- **Headings**: Use \`#\` for Title, \`##\` for sections, \`###\` for subsections.
+- **Bold/Italic**: Use \`**bold**\` for emphasis, \`_italic_\` for nuance.
+- **Lists**: Use \`-\` for bullet points and \`1.\` for numbered lists.
+- **Code**: Use \\\`\\\`\\\`language for code blocks.
+
+**Goal:** The document should look like a professional, formatted document in the editor, NOT plain text.
+
+---
+
 
 ## 📜 EXAMPLES OF LEGENDARY BEHAVIOR
 

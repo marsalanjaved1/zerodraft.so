@@ -47,9 +47,10 @@ export default function InlineDiffView({ node, editor, getPos }: InlineDiffViewP
             <span className="diff-removed mr-1 rounded bg-red-100 px-1 py-0.5 text-red-800 line-through decoration-red-500/50 decoration-2">
                 {original}
             </span>
-            <span className="diff-added rounded bg-green-100 px-1 py-0.5 text-green-800">
-                {suggested}
-            </span>
+            <span
+                className="diff-added rounded bg-green-100 px-1 py-0.5 text-green-800"
+                dangerouslySetInnerHTML={{ __html: suggested }}
+            />
             <span className="ml-1 inline-flex items-center gap-1 align-middle select-none" contentEditable={false}>
                 <button
                     type="button"

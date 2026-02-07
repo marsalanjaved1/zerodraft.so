@@ -201,3 +201,26 @@ export async function moveDocument(workspaceId: string, docId: string, newParent
     if (error) throw new Error(error.message)
     revalidatePath(`/w/${workspaceId}`)
 }
+
+export async function getWorkspace(workspaceId: string) {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('id', workspaceId)
+        .single()
+
+    if (error) throw new Error(error.message)
+    return data
+}
+
+export async function renameWorkspace(workspaceId: string, newName: string) {
+    const supabase = await createClient()
+    const { error } = await supabase
+        .from('workspaces')
+        .update({ name: newName })
+        .eq('id', workspaceId)
+
+    if (error) throw new Error(error.message)
+    revalidatePath(`/w/${workspaceId}`)
+}

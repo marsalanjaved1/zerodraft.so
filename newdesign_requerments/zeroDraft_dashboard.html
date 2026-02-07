@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OpenJenni Dashboard</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b6cee",
+                        "background-light": "#ffffff",
+                        "background-dark": "#101622",
+                        "surface-light": "#f9fafb",
+                        "surface-dark": "#1a2230",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#2d3748",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-hidden h-screen w-full flex">
+<!-- Sidebar -->
+<aside class="w-64 h-full flex flex-col border-r border-border-light dark:border-border-dark bg-white dark:bg-background-dark shrink-0 transition-all duration-300">
+<!-- Logo Area -->
+<div class="h-16 flex items-center px-6">
+<div class="flex items-center gap-2 text-slate-900 dark:text-white">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+<h1 class="text-lg font-bold tracking-tight">OpenJenni</h1>
+</div>
+</div>
+<!-- Primary Action -->
+<div class="px-4 py-4">
+<button class="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm transition-colors duration-200">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span>New Document</span>
+</button>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-medium dark:bg-primary/20" href="#">
+<span class="material-symbols-outlined fill">home</span>
+<span class="text-sm">Home</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span class="text-sm">My Folders</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">share</span>
+<span class="text-sm">Shared with me</span>
+</a>
+<div class="pt-6 pb-2 px-3">
+<p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recent Folders</p>
+</div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300">schedule</span>
+<span class="text-sm truncate">Q3 Strategy</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors group" href="#">
+<span class="material-symbols-outlined text-[20px] text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300">schedule</span>
+<span class="text-sm truncate">Blog Drafts</span>
+</a>
+</nav>
+<!-- Bottom Links -->
+<div class="p-3 mt-auto border-t border-border-light dark:border-border-dark space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">delete</span>
+<span class="text-sm">Trash</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-surface-light dark:hover:bg-surface-dark hover:text-slate-900 dark:hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark">
+<!-- Header -->
+<header class="h-16 border-b border-border-light dark:border-border-dark flex items-center justify-between px-8 bg-white dark:bg-background-dark shrink-0 z-10">
+<!-- Search Bar -->
+<div class="flex-1 max-w-2xl">
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary">search</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-2 border-none rounded-lg leading-5 bg-surface-light dark:bg-surface-dark text-slate-900 dark:text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary sm:text-sm transition-all shadow-sm" placeholder="Search your documents..." type="text"/>
+</div>
+</div>
+<!-- Right Actions -->
+<div class="flex items-center gap-4 pl-8">
+<button class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 p-2 rounded-full hover:bg-surface-light dark:hover:bg-surface-dark transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-background-dark"></span>
+</button>
+<div class="h-8 w-[1px] bg-border-light dark:bg-border-dark"></div>
+<button class="flex items-center gap-2 group">
+<div class="w-9 h-9 rounded-full bg-cover bg-center border border-border-light dark:border-border-dark" data-alt="User profile avatar" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_vVt5oxLnIjCk1j-J0x5XM0vNpOqhuBv5GHp2uRVHhsAYEblmcawhLRRaaUUFPUxyk2svK_rkjeIo-mC4NIVg48vyVruVrTRZcqSx7FHSOvemFwHPtPk3PbW7u9INXR5VuQPaOYd6XFCpNa4PBl1FO7Zvu9raIBP4L30-unLpruld12-olp_pnRFjHBzFO2ee7yj6WDff69Yzkjz4Rqo2B1QvSENikXnh-wxh4739Z5ZON4YJ-bazCcio6Ahqc8BCKBylPpiEzR_R');"></div>
+<span class="material-symbols-outlined text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 text-sm">expand_more</span>
+</button>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="flex-1 overflow-y-auto p-8">
+<div class="max-w-[1400px] mx-auto flex flex-col gap-8">
+<!-- Section Header -->
+<div class="flex items-center justify-between">
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Recent Documents</h2>
+<div class="flex items-center gap-2 bg-surface-light dark:bg-surface-dark p-1 rounded-lg border border-border-light dark:border-border-dark">
+<button class="p-1.5 rounded-md bg-white dark:bg-background-dark text-primary shadow-sm">
+<span class="material-symbols-outlined text-[20px]">grid_view</span>
+</button>
+<button class="p-1.5 rounded-md text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+<span class="material-symbols-outlined text-[20px]">list</span>
+</button>
+<div class="w-[1px] h-4 bg-border-light dark:bg-border-dark mx-1"></div>
+<button class="flex items-center gap-1 px-2 py-1 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white">
+<span class="material-symbols-outlined text-[18px]">sort</span>
+<span>Sort</span>
+</button>
+</div>
+</div>
+<!-- Document Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+<!-- Card 1 -->
+<div class="group flex flex-col bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer">
+<div class="aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center opacity-90 transition-transform duration-500 group-hover:scale-105" data-alt="Abstract blue geometric pattern representing marketing strategy" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD1alYZV0059NO4BPPrl91Rp21tBDPwgOWWIddk9SH2J7MrZhMTBL7V-9b3pzxkIJayQ3kVynEQNbk9p07iCUkBzTHt0AXdotx48o0bxBr-ErSUV-FAsJSt5VcwKsRXEv2i7nbKDGC2TRzFdy_smhlLwaqane-y_CebG3-Jwk8-UiUibHvjZEXhfMliYbNiB2t7e7qOzspI5aZxwUtMrI1OTdRWAXCdmzlhhKM3mBRrK2iT6Q9SqzZ5x5xGA01K-JAKEz52MUcK9HpZ');"></div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1 bg-white/90 dark:bg-black/50 rounded hover:bg-white dark:hover:bg-black/70 backdrop-blur-sm shadow-sm">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-1">
+<div class="flex items-start justify-between gap-2">
+<h3 class="text-base font-semibold text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-1">Q3 Marketing Strategy</h3>
+</div>
+<div class="flex items-center justify-between mt-2">
+<span class="text-xs text-slate-500 dark:text-slate-400">Edited 2h ago</span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    Marketing
+                                </span>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group flex flex-col bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer">
+<div class="aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center opacity-90 transition-transform duration-500 group-hover:scale-105" data-alt="Abstract green pattern symbolizing ethics and nature" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDOh3ATJ_Km4-yPkCeCIj3Lq_ILqLE_dMsw9ut4l_j5Fvtcgi2h3wLjvnJ_fD6Z5KtXI-xHURVZXJ7ytIuHymcJ2B11DoySeVPoSfzRJk5ZNUVGu3gFmnA2FL9O4Oo5yumGTLA7y-AdMQPsb4SzQoZo0JSRtVi18AlWrNvHIXr-iRZnzL2kq2YgutsqpSXtfHCKpPSsUlmC52ziFOiEiTRZQTsFeKMWyRrC7Zq6W0ayc_m_lg1v3Sj3cVc0mXkd2chfRHlCe-2h-lhR');"></div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1 bg-white/90 dark:bg-black/50 rounded hover:bg-white dark:hover:bg-black/70 backdrop-blur-sm shadow-sm">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-1">
+<div class="flex items-start justify-between gap-2">
+<h3 class="text-base font-semibold text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-1">Blog Post: AI Ethics</h3>
+</div>
+<div class="flex items-center justify-between mt-2">
+<span class="text-xs text-slate-500 dark:text-slate-400">Edited yesterday</span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                    Blog
+                                </span>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group flex flex-col bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer">
+<div class="aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center opacity-90 transition-transform duration-500 group-hover:scale-105" data-alt="Abstract purple geometric shapes representing product specs" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCnZqdzCSzUQnz3CcF0iaLp5r3nXJL9pKRIAv-i3InIPT3hFl_hl4BUDi7qwQxd0xBDQrwfHgQbNx2uR6o2iqYe2mh5Q9wKSDyfcrj71FUrUvY7ibjMHI0IrRQdifpfd5a1xPyQkC6Y6YCVbPrjT7MEqo2g8OgSTyxrCFufq0Ar_pY9BFjV653M6Jr3zHD6pWuQbwAAn-8bvfVplz9iLXzn4OJEIOsQwIF0pGYaF4c-rcM4z_uSYPWtbiZn8uu2-oJOgmpqRJka24cn');"></div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1 bg-white/90 dark:bg-black/50 rounded hover:bg-white dark:hover:bg-black/70 backdrop-blur-sm shadow-sm">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-1">
+<div class="flex items-start justify-between gap-2">
+<h3 class="text-base font-semibold text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-1">Project Alpha Specs</h3>
+</div>
+<div class="flex items-center justify-between mt-2">
+<span class="text-xs text-slate-500 dark:text-slate-400">Edited 3 days ago</span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                                    Product
+                                </span>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group flex flex-col bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-200 cursor-pointer">
+<div class="aspect-[16/9] w-full bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center opacity-90 transition-transform duration-500 group-hover:scale-105" data-alt="Abstract orange waves for newsletter content" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBneuYyU6m_ra2b2gEzpQu_dkkPLBK5m9eBbLhEwPlBJiRuVTwi1fqDtPIlbd2m-6IhDXWAGAOEtSSnvVL5eGPMbEk2EpXXe1zqLNXpMyuPvEQ-u1FsGiJJSfs2i_Q3u-brH0bwMIRQj-RYIiXp6RdZoWrwda9HIDa5kK0h1sbPjJjrShidX1_ALpyBV-VLy_aOW6TAgohE1DFpHcYeUonJdVtLY51hSQgrKOATTPORIPES8jKcMyTxx6ray93I3vEdKZuwRLy5Zg0F');"></div>
+<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-1 bg-white/90 dark:bg-black/50 rounded hover:bg-white dark:hover:bg-black/70 backdrop-blur-sm shadow-sm">
+<span class="material-symbols-outlined text-[18px]">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-1">
+<div class="flex items-start justify-between gap-2">
+<h3 class="text-base font-semibold text-slate-900 dark:text-white leading-tight group-hover:text-primary transition-colors line-clamp-1">Newsletter Draft #4</h3>
+</div>
+<div class="flex items-center justify-between mt-2">
+<span class="text-xs text-slate-500 dark:text-slate-400">Edited 1 week ago</span>
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                                    Social
+                                </span>
+</div>
+</div>
+</div>
+<!-- Add New Card (Empty State-ish) -->
+<div class="group flex flex-col items-center justify-center min-h-[220px] bg-surface-light dark:bg-surface-dark/50 rounded-xl border border-dashed border-border-light dark:border-border-dark hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-all duration-200 cursor-pointer">
+<div class="h-12 w-12 rounded-full bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark flex items-center justify-center mb-3 group-hover:border-primary/50 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary">add</span>
+</div>
+<h3 class="text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-primary">Create new document</h3>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

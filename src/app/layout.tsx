@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Product Engineering Workspace",
+  title: "Zerodraft.so",
   description: "Agentic Workspace for Product Managers",
 };
 

@@ -4,8 +4,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
     Bot, User, ArrowUp, Loader2, Check, AlertCircle, X,
     FileText, FolderOpen, Search, PenLine, ChevronDown,
-    Copy, FileDown, Sparkles, BookOpen, Square, Play, GitCompare, Target
+    Copy, FileDown, Sparkles, BookOpen, Square, Play, GitCompare, Target,
+    History, Plus, MessageSquare
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import type { FileNode } from "@/lib/types";
 import { executeTool, TOOL_DEFINITIONS } from "@/lib/client-tools";
 import { executeFileSystemTool } from "@/app/actions";
@@ -62,6 +64,13 @@ interface AgentPanelProps {
     onApplyDiff?: (diff: { removed: string; added: string; position: number }) => void;
     onRefreshFiles?: () => void;
     onOpenFile?: (fileId: string) => void;
+    onClose?: () => void;
+}
+
+interface ChatSession {
+    id: string;
+    title: string;
+    created_at: string;
 }
 
 // Build folder tree string for context
@@ -113,14 +122,90 @@ export function AgentPanel({
     chatSessionId,
     onApplyDiff,
     onRefreshFiles,
-    onOpenFile
+    onOpenFile,
+    onClose
 }: AgentPanelProps) {
+    const supabase = createClient();
     const [messages, setMessages] = useState<Message[]>([]);
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(chatSessionId || null);
+    const [view, setView] = useState<'chat' | 'history'>('chat');
+
+    // Load sessions on mount
+    useEffect(() => {
+        if (isOpen) {
+            const fetchSessions = async () => {
+                const { data } = await supabase
+                    .from('chats')
+                    .select('*')
+                    .eq('workspace_id', workspaceId)
+                    .order('created_at', { ascending: false });
+                if (data) setSessions(data);
+            };
+            fetchSessions();
+        }
+    }, [isOpen, workspaceId, supabase]);
+
+    // Load messages when session changes
+    useEffect(() => {
+        if (currentSessionId) {
+            const fetchMessages = async () => {
+                const { data } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('chat_id', currentSessionId)
+                    .order('created_at', { ascending: true });
+
+                if (data) {
+                    const loadedMessages: Message[] = data.map(msg => ({
+                        id: msg.id,
+                        role: msg.role as any,
+                        content: msg.content || "",
+                        toolCalls: msg.tool_calls ? (msg.tool_calls as any[]).map((tc: any) => ({
+                            ...tc,
+                            status: tc.status || 'completed'
+                        })) : undefined
+                    }));
+                    setMessages(loadedMessages);
+                }
+            };
+            fetchMessages();
+        } else {
+            setMessages([]);
+        }
+    }, [currentSessionId, supabase]);
+
+    // Helper to create new session
+    const createNewSession = useCallback(async (title: string) => {
+        const { data } = await supabase.from('chats').insert({
+            workspace_id: workspaceId,
+            title: title || "New Chat"
+        }).select().single();
+
+        if (data) {
+            setSessions(prev => [data, ...prev]);
+            setCurrentSessionId(data.id);
+            return data.id;
+        }
+        return null;
+    }, [workspaceId, supabase]);
+
+    // Helper to save message
+    const saveMessageToDb = useCallback(async (message: Message, sessionId: string) => {
+        await supabase.from('messages').upsert({
+            id: message.id,
+            chat_id: sessionId,
+            role: message.role,
+            content: message.content,
+            tool_calls: message.toolCalls ? message.toolCalls : null,
+            updated_at: new Date().toISOString()
+        });
+    }, [supabase]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isExecuting, setIsExecuting] = useState(false);
     const [shouldStop, setShouldStop] = useState(false);
-    const [activeTab, setActiveTab] = useState<"chat" | "sources" | "changes">("chat");
+
     const [sources, setSources] = useState<Source[]>([]);
     const [currentFiles, setCurrentFiles] = useState<FileNode[]>(files);
     const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
@@ -449,7 +534,29 @@ export function AgentPanel({
         abortControllerRef.current = new AbortController();
 
         try {
-            await runAgenticLoop(newMessages, setMessages);
+            // Ensure session exists
+            let sessionId = currentSessionId;
+            if (!sessionId) {
+                const title = input.slice(0, 30) + (input.length > 30 ? "..." : "");
+                sessionId = await createNewSession(title);
+            }
+
+            if (sessionId) {
+                // Save user message
+                saveMessageToDb(userMessage, sessionId);
+
+                await runAgenticLoop(newMessages, (updatedMessages) => {
+                    setMessages(updatedMessages);
+                    // Save assistant message as it updates
+                    const lastMsg = updatedMessages[updatedMessages.length - 1];
+                    if (lastMsg && lastMsg.role === 'assistant' && sessionId) {
+                        saveMessageToDb(lastMsg, sessionId);
+                    }
+                });
+            } else {
+                // Fallback without persistence if session creation fails
+                await runAgenticLoop(newMessages, setMessages);
+            }
         } finally {
             setIsLoading(false);
             setIsExecuting(false);
@@ -523,44 +630,73 @@ export function AgentPanel({
     if (!isOpen) return null;
 
     return (
-        <aside className="w-80 border-l border-gray-200 bg-gray-50 flex flex-col flex-none">
-            {/* Header with Tabs */}
-            <div className="flex items-center border-b border-gray-200 bg-white">
-                <button
-                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${activeTab === "chat"
-                        ? "text-gray-900 border-b-2 border-indigo-500"
-                        : "text-gray-500 hover:text-gray-900"
-                        }`}
-                    onClick={() => setActiveTab("chat")}
-                >
-                    Chat
-                </button>
-                <button
-                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all relative ${activeTab === "changes"
-                        ? "text-gray-900 border-b-2 border-indigo-500"
-                        : "text-gray-500 hover:text-gray-900"
-                        }`}
-                    onClick={() => setActiveTab("changes")}
-                >
-                    Changes
-                    {pendingChangesCount > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                            {pendingChangesCount}
-                        </span>
+        <aside className="w-80 border-l border-gray-200 bg-white flex flex-col flex-none">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+                <h2 className="text-sm font-semibold text-gray-900">
+                    {view === 'history' ? 'Chat History' : 'Chat'}
+                </h2>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setView(view === 'chat' ? 'history' : 'chat')}
+                        className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${view === 'history' ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}
+                        title="History"
+                    >
+                        <History className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => {
+                            setCurrentSessionId(null);
+                            setView('chat');
+                            setMessages([]);
+                        }}
+                        className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
+                        title="New Chat"
+                    >
+                        <Plus className="w-4 h-4" />
+                    </button>
+                    {onClose && (
+                        <button
+                            onClick={onClose}
+                            className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors ml-1"
+                            title="Close"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
                     )}
-                </button>
-                <button
-                    className={`flex-1 px-4 py-3 text-sm font-medium transition-all ${activeTab === "sources"
-                        ? "text-gray-900 border-b-2 border-indigo-500"
-                        : "text-gray-500 hover:text-gray-900"
-                        }`}
-                    onClick={() => setActiveTab("sources")}
-                >
-                    Sources
-                </button>
+                </div>
             </div>
 
-            {activeTab === "chat" ? (
+            {view === 'history' ? (
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {sessions.map(session => (
+                        <button
+                            key={session.id}
+                            onClick={() => {
+                                setCurrentSessionId(session.id);
+                                setView('chat');
+                            }}
+                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-3 ${currentSessionId === session.id
+                                ? 'bg-white shadow-sm ring-1 ring-gray-200 text-indigo-600'
+                                : 'text-gray-600 hover:bg-gray-100'
+                                }`}
+                        >
+                            <MessageSquare className="w-4 h-4 shrink-0 opacity-50" />
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium">{session.title}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                    {new Date(session.created_at).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </button>
+                    ))}
+                    {sessions.length === 0 && (
+                        <div className="text-center py-8 text-gray-400 text-sm">
+                            No chat history
+                        </div>
+                    )}
+                </div>
+            ) : (
                 <>
                     {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -583,7 +719,7 @@ export function AgentPanel({
                                 {message.role === "user" ? (
                                     // User message
                                     <div className="flex justify-end">
-                                        <div className="max-w-[85%] bg-gray-900 text-white rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
+                                        <div className="max-w-[85%] bg-gray-100 text-gray-900 rounded-2xl rounded-br-md px-4 py-2.5 text-sm">
                                             {message.content}
                                         </div>
                                     </div>
@@ -730,7 +866,7 @@ export function AgentPanel({
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask AI to help write, edit, or research... (@ to add context)"
-                                className="w-full resize-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all min-h-[48px] max-h-[200px] overflow-y-auto"
+                                className="w-full resize-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all min-h-[48px] max-h-[200px] overflow-y-auto"
                                 rows={1}
                                 disabled={isExecuting}
                             />
@@ -760,109 +896,46 @@ export function AgentPanel({
                             )}
                         </p>
                     </div>
-                </>
-            ) : activeTab === "sources" ? (
-                // Sources Tab
-                <div className="flex-1 overflow-y-auto p-4">
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-gray-900">Active Sources</h3>
-                            <button className="text-xs text-indigo-600 hover:text-indigo-700 font-medium">
-                                + Add Source
-                            </button>
-                        </div>
 
-                        {sources.length === 0 ? (
-                            <div className="text-center py-8">
-                                <BookOpen className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                                <p className="text-sm text-gray-500">No sources added yet</p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Add sources to cite in your document
-                                </p>
+
+                    {/* Model Selector Footer */}
+                    <div className="p-3 border-t border-gray-200 bg-white relative">
+                        <button
+                            onClick={() => setShowModelMenu(!showModelMenu)}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs"
+                        >
+                            <span className="text-gray-500">Model:</span>
+                            <span className="font-medium text-gray-700 flex items-center gap-1">
+                                {MODELS.find(m => m.id === selectedModel)?.name || "Select model"}
+                                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showModelMenu ? 'rotate-180' : ''}`} />
+                            </span>
+                        </button>
+
+                        {/* Model Dropdown Menu */}
+                        {showModelMenu && (
+                            <div className="absolute bottom-full left-0 right-0 mb-1 mx-3 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+                                {MODELS.map((model) => (
+                                    <button
+                                        key={model.id}
+                                        onClick={() => {
+                                            setSelectedModel(model.id);
+                                            setShowModelMenu(false);
+                                        }}
+                                        className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 transition-colors flex items-center justify-between ${selectedModel === model.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                                            }`}
+                                    >
+                                        <span>{model.name}</span>
+                                        {selectedModel === model.id && (
+                                            <Check className="w-3 h-3 text-indigo-600" />
+                                        )}
+                                    </button>
+                                ))}
                             </div>
-                        ) : (
-                            sources.map((source) => (
-                                <div key={source.id} className="card card-hover group">
-                                    <div className="flex items-start gap-3">
-                                        <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold flex items-center justify-center">
-                                            {source.citationNumber}
-                                        </span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-gray-900 truncate">
-                                                {source.title}
-                                            </p>
-                                            {source.author && (
-                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                    {source.author}
-                                                    {source.publication && ` – ${source.publication}`}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
                         )}
                     </div>
-                </div>
-            ) : activeTab === "changes" ? (
-                /* Changes Tab Content */
-                <div className="flex-1 overflow-y-auto">
-                    <TrackedChangesPanel
-                        changes={trackedChanges}
-                        onAccept={(id) => {
-                            const change = acceptChange(id);
-                            if (change && onReplaceSelection) {
-                                // Apply the accepted change to the document
-                                // Note: This would need to search and replace in the editor
-                                console.log("Accepted change:", change);
-                            }
-                        }}
-                        onReject={rejectChange}
-                        onAcceptAll={() => {
-                            const accepted = acceptAllChanges();
-                            console.log("Accepted all changes:", accepted);
-                        }}
-                        onRejectAll={rejectAllChanges}
-                    />
-                </div>
-            ) : null}
-
-            {/* Model Selector Footer */}
-            <div className="p-3 border-t border-gray-200 bg-white relative">
-                <button
-                    onClick={() => setShowModelMenu(!showModelMenu)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs"
-                >
-                    <span className="text-gray-500">Model:</span>
-                    <span className="font-medium text-gray-700 flex items-center gap-1">
-                        {MODELS.find(m => m.id === selectedModel)?.name || "Select model"}
-                        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showModelMenu ? 'rotate-180' : ''}`} />
-                    </span>
-                </button>
-
-                {/* Model Dropdown Menu */}
-                {showModelMenu && (
-                    <div className="absolute bottom-full left-0 right-0 mb-1 mx-3 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
-                        {MODELS.map((model) => (
-                            <button
-                                key={model.id}
-                                onClick={() => {
-                                    setSelectedModel(model.id);
-                                    setShowModelMenu(false);
-                                }}
-                                className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 transition-colors flex items-center justify-between ${selectedModel === model.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
-                                    }`}
-                            >
-                                <span>{model.name}</span>
-                                {selectedModel === model.id && (
-                                    <Check className="w-3 h-3 text-indigo-600" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </aside>
+                </>
+            )}
+        </aside >
     );
 }
 

@@ -1,0 +1,20 @@
+John Doe
+Software Engineer
+123 Main St, Anytown USA
+john.doe@email.com
+
+Experience
+Senior Developer at Tech Co (2020-Present)
+- Built web apps using React and Node.js
+- Led a team of 5 developers
+- Improved performance by 50%
+
+Junior Developer at Startup Inc (2018-2020)
+- Fixed bugs and added features
+- Worked with Python and Django
+
+Education
+BS Computer Science, University of Technology (2014-2018)
+
+Skills
+JavaScript, TypeScript, React, Node.js, Python, SQL
