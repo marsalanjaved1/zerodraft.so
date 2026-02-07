@@ -2891,7 +2891,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -2984,7 +2984,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3111,7 +3111,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3204,7 +3204,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3430,7 +3430,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3525,7 +3525,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3574,7 +3574,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3623,7 +3623,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3672,7 +3672,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3744,7 +3744,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -3793,7 +3793,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      4\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",
@@ -4295,7 +4295,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      3\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "assistant",
@@ -4369,7 +4369,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      3\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "assistant",
@@ -4472,7 +4472,7 @@ Manual OpenRouter Error: {
     "message": "[\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"system\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"system\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"user\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"user\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"developer\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"developer\\\"\"\n        }\n      ],\n      [\n        {\n          \"code\": \"invalid_value\",\n          \"values\": [\n            \"assistant\"\n          ],\n          \"path\": [\n            \"role\"\n          ],\n          \"message\": \"Invalid input: expected \\\"assistant\\\"\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [\n            \"toolCallId\"\n          ],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"messages\",\n      3\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"
   },
   "rawValue": {
-    "model": "anthropic/claude-3.5-sonnet",
+    "model": "anthropic/claude-haiku-4.5",
     "messages": [
       {
         "role": "system",

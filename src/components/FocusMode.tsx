@@ -27,11 +27,11 @@ export function FocusMode({ isActive, onClose, children }: FocusModeProps) {
     if (!isActive) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-[#1e1e1e]">
+        <div className="fixed inset-0 z-50 bg-white">
             {/* Close button */}
             <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-md hover:bg-[#3c3c3c] text-[#858585] hover:text-[#cccccc] transition-colors z-50"
+                className="absolute top-6 right-6 p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors z-50"
                 title="Exit Focus Mode (Escape)"
             >
                 <X className="w-5 h-5" />

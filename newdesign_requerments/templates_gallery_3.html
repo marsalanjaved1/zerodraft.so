@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>zerodraft.so Controlled Editor</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#111318",
+                        "primary-light": "#f3f4f6",
+                        "background-light": "#ffffff",
+                        "background-dark": "#101622",
+                        "border-light": "#e5e7eb",
+                        "border-dark": "#2a3441",
+                        "success-light": "#dcfce7",
+                        "success-text": "#166534",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Merriweather", "serif"],
+                    },
+                    boxShadow: {
+                        'float': '0 8px 30px -4px rgba(0, 0, 0, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.04)',
+                        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .ghost-text-animation {
+                animation: pulse-gray 2s infinite;
+            }
+            @keyframes pulse-gray {
+                0%, 100% { opacity: 0.5; }
+                50% { opacity: 0.7; }
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#111318] font-display h-screen flex flex-col overflow-hidden antialiased">
+    <header class="h-12 flex-none bg-white border-b border-border-light flex items-center justify-between px-4 z-30">
+        <div class="flex items-center gap-4">
+            <button class="text-gray-400 hover:text-gray-900 transition-colors">
+                <span class="material-symbols-outlined !text-[20px]">menu</span>
+            </button>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+                <span>Projects</span>
+                <span class="material-symbols-outlined !text-[14px]">chevron_right</span>
+                <span>Q3 Marketing</span>
+                <span class="material-symbols-outlined !text-[14px]">chevron_right</span>
+            </div>
+            <div class="flex items-center gap-2 group">
+                <h1 class="text-sm font-medium text-gray-900 cursor-text">The Future of AI Content</h1>
+            </div>
+            <span class="size-1.5 rounded-full bg-green-500 ml-1" title="Saved"></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button
+                class="text-gray-500 hover:text-gray-900 text-xs font-medium px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-transparent hover:border-gray-200">
+                Share
+                <span class="material-symbols-outlined !text-[14px]">ios_share</span>
+            </button>
+            <div class="size-7 rounded-full bg-gray-100 border border-gray-200"
+                style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAu9tXFx0zLwQagiNtdlmy-WdPKQZpf_EYyPdk3oxPNICVnUuVdBwIsHk16nd4BSY0HrcerPyGTv62RzounA4tizIl3ibwiK7-xbCJutoTbzvoMIAACNoNujPrBUq1mGehM9UrZ9HlSHrDZ2YP6yQ0xMVTFnesMfNpvQx-ePsiGWO3undyQBghcdENRWNdUnhUoxYKt_KcVbjjxQcgEBjE8giM9rm1lppA-VRNUmJHbtF7q-1Mejjv1VVXt-VRzrU76_gYXtWk4P8Ym"); background-size: cover;'>
+            </div>
+        </div>
+    </header>
+    <div class="flex flex-1 overflow-hidden">
+        <aside class="w-64 bg-gray-50 border-r border-border-light flex flex-col flex-none z-10 hidden md:flex">
+            <div class="p-3 border-b border-border-light/50">
+                <button
+                    class="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-white transition-all shadow-none hover:shadow-subtle text-sm font-medium text-gray-700">
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="size-5 bg-gray-200 rounded flex items-center justify-center text-gray-600 text-[10px] font-bold">M</span>
+                        <span>Marketing Team</span>
+                    </div>
+                    <span class="material-symbols-outlined !text-[16px] text-gray-400">unfold_more</span>
+                </button>
+            </div>
+            <div class="px-3 py-3">
+                <div class="relative group">
+                    <span
+                        class="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined !text-[16px] text-gray-400 group-focus-within:text-gray-600">search</span>
+                    <input
+                        class="w-full pl-8 pr-3 py-1.5 bg-white border border-border-light rounded-md text-sm focus:ring-1 focus:ring-gray-300 focus:border-gray-300 placeholder:text-gray-400 transition-shadow shadow-sm"
+                        placeholder="Find..." type="text" />
+                </div>
+            </div>
+            <nav class="flex-1 overflow-y-auto px-2 py-2 space-y-6">
+                <div>
+                    <div class="px-2 mb-1.5 flex items-center justify-between group">
+                        <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Documents</span>
+                        <button class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700">
+                            <span class="material-symbols-outlined !text-[14px]">add</span>
+                        </button>
+                    </div>
+                    <ul class="space-y-0.5">
+                        <li>
+                            <a class="group flex items-center gap-2 px-2 py-1.5 rounded-md bg-white shadow-subtle border border-border-light/60 text-sm text-gray-900 font-medium"
+                                href="#">
+                                <span class="material-symbols-outlined !text-[16px] text-gray-900">description</span>
+                                <span class="truncate flex-1">The Future of AI</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white hover:shadow-subtle text-sm text-gray-500"
+                                href="#">
+                                <span class="material-symbols-outlined !text-[16px] text-gray-400">description</span>
+                                <span class="truncate flex-1">Q3 Strategy Draft</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="px-2 mb-1.5 flex items-center justify-between group">
+                        <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Research
+                            Notes</span>
+                    </div>
+                    <ul class="space-y-0.5">
+                        <li>
+                            <a class="group flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white hover:shadow-subtle text-sm text-gray-500"
+                                href="#">
+                                <span class="material-symbols-outlined !text-[16px] text-gray-400">folder</span>
+                                <span class="truncate flex-1">Competitor Analysis</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            <div class="p-3 border-t border-border-light">
+                <button
+                    class="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-900 transition-colors w-full px-2 py-1">
+                    <span class="material-symbols-outlined !text-[18px]">settings</span>
+                    Settings
+                </button>
+            </div>
+        </aside>
+        <main class="flex-1 flex flex-col relative bg-white overflow-hidden">
+            <div class="flex justify-center pt-6 pb-2 z-20 px-4 absolute top-0 w-full pointer-events-none">
+                <div
+                    class="pointer-events-auto flex items-center gap-1 bg-white border border-border-light rounded-full shadow-float px-3 py-1.5 backdrop-blur-sm bg-white/90">
+                    <div class="flex items-center border-r border-border-light pr-2 mr-1">
+                        <button
+                            class="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors">
+                            <span class="material-symbols-outlined !text-[18px]">undo</span>
+                        </button>
+                        <button
+                            class="p-1 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-md transition-colors">
+                            <span class="material-symbols-outlined !text-[18px]">redo</span>
+                        </button>
+                    </div>
+                    <button
+                        class="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors">
+                        Serif
+                        <span class="material-symbols-outlined !text-[14px]">expand_more</span>
+                    </button>
+                    <div class="w-px h-3 bg-gray-200 mx-1"></div>
+                    <button class="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-md">
+                        <span class="material-symbols-outlined !text-[18px]">format_bold</span>
+                    </button>
+                    <button class="p-1 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-md">
+                        <span class="material-symbols-outlined !text-[18px]">format_italic</span>
+                    </button>
+                    <div class="w-px h-3 bg-gray-200 mx-1"></div>
+                    <button
+                        class="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors group">
+                        <span
+                            class="material-symbols-outlined !text-[16px] text-purple-600 group-hover:scale-110 transition-transform">auto_awesome</span>
+                        Ask AI
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto cursor-text relative" id="editor-canvas">
+                <div class="max-w-[720px] mx-auto py-24 px-8 min-h-full">
+                    <h1 class="text-4xl font-serif font-bold text-gray-900 mb-8 leading-tight tracking-tight">The Future
+                        of AI Content: Collaboration, Not Replacement</h1>
+                    <p class="font-serif text-[1.05rem] leading-[1.8] text-gray-800 mb-6">
+                        Artificial Intelligence has rapidly evolved from simple automation scripts to complex neural
+                        networks capable of generating human-like text. However, the prevailing narrative that AI will
+                        replace human creativity is fundamentally flawed. Instead, we are entering an era of
+                        collaborative intelligence.
+                    </p>
+                    <p class="font-serif text-[1.05rem] leading-[1.8] text-gray-800 mb-6 relative group/inline">
+                        When we look at the history of technological adoption, tools that augment human capabilities
+                        tend to have the most profound staying power. The printing press didn't eliminate storytellers;
+                        it amplified their reach. Similarly,
+                        <span
+                            class="relative bg-red-50 text-gray-400 line-through decoration-red-300 decoration-2 decoration-slice">AI
+                            tools</span>
+                        <span class="relative bg-green-50 text-gray-900 border-b-2 border-green-300 pb-0.5">generative
+                            writing partners</span>
+                        are not here to eliminate the writer, but to remove the friction of the blank page <sup
+                            class="text-xs text-blue-600 font-sans cursor-pointer hover:underline">[1]</sup>.
+                        <span
+                            class="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover/inline:flex items-center gap-1 bg-white border border-gray-200 shadow-float rounded-lg p-1 z-10 animate-fade-in">
+                            <button
+                                class="flex items-center justify-center p-1.5 rounded hover:bg-green-50 text-green-600 transition-colors"
+                                title="Accept">
+                                <span class="material-symbols-outlined !text-[18px]">check</span>
+                            </button>
+                        </span>
+                    </p>
+                    <div class="w-px h-4 bg-gray-200"></div>
+                    <button
+                        class="flex items-center justify-center p-1.5 rounded hover:bg-red-50 text-red-500 transition-colors"
+                        title="Reject">
+                        <span class="material-symbols-outlined !text-[18px]">close</span>
+                    </button>
+
+                    <p></p>
+                    <h2 class="text-xl font-serif font-bold text-gray-900 mt-10 mb-4">The Shift in Workflow</h2>
+                    <p class="font-serif text-[1.05rem] leading-[1.8] text-gray-800 mb-6">
+                        Modern writers are finding that AI serves best as a devil's advocate or an infinite idea
+                        generator. By offloading the structural heavy lifting to an algorithm, creators can focus on
+                        nuance, voice, and emotional resonance. This shift represents a move from pure creation to
+                        curation and direction.
+                        <span class="text-gray-400 ghost-text-animation">As the tools become more sophisticated, the
+                            skill of 'prompt engineering' will likely merge with traditional editorial skills.</span>
+                        <span
+                            class="inline-flex items-center justify-center ml-1 align-middle h-5 px-1.5 text-[9px] font-sans font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded tracking-wide">TAB</span>
+                    </p>
+                    <div
+                        class="absolute top-[380px] left-[50%] translate-x-8 bg-white text-gray-800 rounded-lg shadow-float border border-border-light p-1.5 flex flex-col min-w-[180px] animate-fade-in z-30">
+                        <div class="px-2 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
+                            Selection</div>
+                        <button
+                            class="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-gray-50 text-left text-xs font-medium transition-colors group">
+                            <span>Rewrite</span>
+                            <span
+                                class="material-symbols-outlined !text-[14px] text-gray-400 opacity-0 group-hover:opacity-100">autorenew</span>
+                        </button>
+                        <button
+                            class="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-gray-50 text-left text-xs font-medium transition-colors group">
+                            <span>Expand</span>
+                            <span
+                                class="material-symbols-outlined !text-[14px] text-gray-400 opacity-0 group-hover:opacity-100">unfold_more</span>
+                        </button>
+                        <button
+                            class="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-gray-50 text-left text-xs font-medium transition-colors group">
+                            <span>Shorten</span>
+                            <span
+                                class="material-symbols-outlined !text-[14px] text-gray-400 opacity-0 group-hover:opacity-100">unfold_less</span>
+                        </button>
+                        <div class="h-px bg-gray-100 my-1"></div>
+                        <button
+                            class="flex items-center justify-between w-full px-2 py-1.5 rounded hover:bg-gray-50 text-left text-xs font-medium transition-colors group">
+                            <span>Change Tone</span>
+                            <span class="material-symbols-outlined !text-[14px] text-gray-400">chevron_right</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div
+                class="flex-none bg-white border-t border-border-light py-2 px-8 flex items-center justify-between text-[11px] text-gray-400 font-medium">
+                <div class="flex items-center gap-4">
+                    <span>342 words</span>
+                    <span>1,890 characters</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span>2 min read</span>
+                    <span class="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        <span class="material-symbols-outlined !text-[12px]">cloud_done</span>
+                        Saved
+                    </span>
+                </div>
+            </div>
+        </main>
+        <aside class="w-80 flex-none bg-white border-l border-border-light flex flex-col z-10">
+            <div class="px-4 py-3 border-b border-border-light">
+                <div class="flex bg-gray-100 p-0.5 rounded-lg">
+                    <button
+                        class="flex-1 py-1 text-xs font-medium rounded-md text-gray-900 bg-white shadow-sm">Chat</button>
+                    <button
+                        class="flex-1 py-1 text-xs font-medium rounded-md text-gray-500 hover:text-gray-900 transition-colors">Sources
+                        <span class="ml-1 text-[10px] bg-gray-200 text-gray-600 px-1 rounded-full">2</span></button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50/30">
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div
+                            class="size-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                            Z</div>
+                        <span class="text-[10px] font-semibold text-gray-500 uppercase">Zerodraft AI</span>
+                    </div>
+                    <div
+                        class="bg-white border border-gray-100 p-3 rounded-lg shadow-sm text-sm text-gray-600 leading-relaxed">
+                        I can help you expand on the "collaborative intelligence" section. Would you like to include
+                        some examples of human-AI collaboration in other industries?
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 items-end">
+                    <div class="bg-gray-900 text-white p-3 rounded-lg text-sm leading-relaxed max-w-[90%] shadow-sm">
+                        Yes, use the chess example (Kasparov's Advanced Chess).
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div
+                            class="size-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">
+                            Z</div>
+                        <span class="text-[10px] font-semibold text-gray-500 uppercase">Zerodraft AI</span>
+                    </div>
+                    <div
+                        class="bg-white border border-gray-100 p-3 rounded-lg shadow-sm text-sm text-gray-600 leading-relaxed">
+                        Here's a draft paragraph about Centaur Chess:
+                        <br /><br />
+                        "Consider the world of chess. After Deep Blue defeated Garry Kasparov, the game didn't die.
+                        Instead, 'Advanced Chess' was born—where human grandmasters paired with AI engines."
+                        <div class="flex gap-2 mt-3 pt-3 border-t border-gray-50">
+                            <button
+                                class="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-gray-50 border border-gray-200 rounded text-xs font-medium text-gray-700 hover:bg-white hover:shadow-subtle transition-all">
+                                <span class="material-symbols-outlined !text-[14px]">content_copy</span>
+                                Copy
+                            </button>
+                            <button
+                                class="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-white border border-gray-200 rounded text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors">
+                                <span class="material-symbols-outlined !text-[14px]">add_circle</span>
+                                Insert
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-border-light bg-white p-4">
+                <div class="mb-3">
+                    <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Active Sources</h3>
+                    <div class="space-y-2">
+                        <div
+                            class="flex gap-2 items-start p-2 rounded bg-gray-50 border border-gray-100 hover:border-blue-200 transition-colors cursor-pointer group">
+                            <span
+                                class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1 py-0.5 rounded h-fit mt-0.5">[1]</span>
+                            <div>
+                                <p class="text-xs font-medium text-gray-800 line-clamp-1 group-hover:text-blue-600">The
+                                    Case for Collaborative Intelligence</p>
+                                <p class="text-[10px] text-gray-500">Harvard Business Review, 2023</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <textarea
+                        class="w-full pl-3 pr-10 py-3 bg-white border border-border-light rounded-lg text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder:text-gray-400 resize-none scrollbar-hide shadow-subtle"
+                        placeholder="Ask to rewrite, cite, or edit..." rows="1"></textarea>
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <button class="p-1.5 bg-gray-900 rounded-md text-white hover:bg-gray-700 transition-colors">
+                            <span class="material-symbols-outlined !text-[16px]">arrow_upward</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[10px] text-gray-400">
+                    <span><kbd class="font-sans border border-gray-200 rounded px-1 bg-gray-50 text-gray-500">/</kbd>
+                        commands</span>
+                    <span class="text-[10px]">GPT-4o</span>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+</body>
+
+</html>

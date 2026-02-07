@@ -11,6 +11,7 @@ import {
     Placeholder,
     HighlightExtension,
 } from "novel";
+import { InlineDiff } from "./diff-extension";
 
 // Placeholder configuration - using Novel's bundled version
 const placeholder = Placeholder.configure({
@@ -121,4 +122,6 @@ export const defaultExtensions = [
     horizontalRule,
     highlight,
     underline,
+    InlineDiff as any,
 ];
+

@@ -1,12 +1,13 @@
 'use client';
 
-import { CheckCircle2, AlertCircle, Loader2, Clock } from 'lucide-react';
+import { Cloud, CheckCircle2, Loader2 } from 'lucide-react';
 import type { SaveStatus } from '@/lib/hooks/use-autosave';
 
 interface StatusBarProps {
     saveStatus: SaveStatus;
     lastSaved: Date | null;
     wordCount?: { words: number; characters: number };
+    readTime?: number; // minutes
 }
 
 function formatLastSaved(date: Date | null): string {
@@ -24,46 +25,55 @@ function formatLastSaved(date: Date | null): string {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function StatusBar({ saveStatus, lastSaved, wordCount }: StatusBarProps) {
-    return (
-        <div className="flex items-center justify-between px-4 py-1 bg-[#007acc] text-white text-xs">
-            {/* Left side - Save status */}
-            <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                    {saveStatus === 'saving' && (
-                        <>
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>Saving...</span>
-                        </>
-                    )}
-                    {saveStatus === 'saved' && (
-                        <>
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Saved</span>
-                        </>
-                    )}
-                    {saveStatus === 'error' && (
-                        <>
-                            <AlertCircle className="w-3 h-3 text-red-300" />
-                            <span className="text-red-300">Save failed</span>
-                        </>
-                    )}
-                    {saveStatus === 'idle' && lastSaved && (
-                        <>
-                            <Clock className="w-3 h-3 opacity-70" />
-                            <span className="opacity-70">Saved {formatLastSaved(lastSaved)}</span>
-                        </>
-                    )}
-                </div>
-            </div>
+function calculateReadTime(words: number): number {
+    // Average reading speed: 200 words per minute
+    return Math.max(1, Math.ceil(words / 200));
+}
 
-            {/* Right side - Word count */}
+export function StatusBar({ saveStatus, lastSaved, wordCount }: StatusBarProps) {
+    const readTime = wordCount ? calculateReadTime(wordCount.words) : 0;
+
+    return (
+        <div className="flex-none bg-white border-t border-border py-2 px-8 flex items-center justify-between text-[11px] text-gray-400 font-medium">
+            {/* Left side - Word count */}
             <div className="flex items-center gap-4">
                 {wordCount && (
                     <>
-                        <span>{wordCount.words} words</span>
-                        <span>{wordCount.characters} characters</span>
+                        <span>{wordCount.words.toLocaleString()} words</span>
+                        <span>{wordCount.characters.toLocaleString()} characters</span>
                     </>
+                )}
+            </div>
+
+            {/* Right side - Read time + Save status */}
+            <div className="flex items-center gap-4">
+                {readTime > 0 && (
+                    <span>{readTime} min read</span>
+                )}
+
+                {/* Save status indicator */}
+                {saveStatus === 'saving' && (
+                    <span className="flex items-center gap-1.5 text-gray-400">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Saving...
+                    </span>
+                )}
+                {saveStatus === 'saved' && (
+                    <span className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        <Cloud className="w-3 h-3" />
+                        Saved
+                    </span>
+                )}
+                {saveStatus === 'error' && (
+                    <span className="flex items-center gap-1.5 text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                        Save failed
+                    </span>
+                )}
+                {saveStatus === 'idle' && lastSaved && (
+                    <span className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Saved {formatLastSaved(lastSaved)}
+                    </span>
                 )}
             </div>
         </div>

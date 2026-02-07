@@ -3,7 +3,7 @@ import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from "@langchain/
 import { allTools } from "./tools";
 
 // Initialize the LLM with OpenRouter
-export function createLLM(model: string = "anthropic/claude-3.5-sonnet") {
+export function createLLM(model: string = "anthropic/claude-haiku-4.5") {
     const llm = new ChatOpenAI({
         modelName: model,
         configuration: {

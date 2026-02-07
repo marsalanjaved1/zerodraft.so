@@ -1,0 +1,221 @@
+Below is a **single, BIG, copy-paste-ready prompt** you can drop straight into **Antigravity**.
+
+It assumes:
+
+* You already uploaded **existing mockups**
+* Product name: **zerodraft.so**
+* Goal: **redesign into a true agentic AI co-writer**
+* Platform: **white-theme web app**
+* Audience: serious writers, researchers, PMs, engineers
+
+No commentary. Just the prompt.
+
+---
+
+```
+You are Antigravity, acting as a principal product designer + AI systems designer.
+
+You are redesigning an existing white-theme web app called zerodraft.so into a
+production-grade **agentic AI co-writer**, not a chatbot and not a text generator.
+
+I have already uploaded the current UI mockups.
+Use them as a baseline, not a constraint.
+
+Your task is to redesign zerodraft.so so the AI behaves like a **writing agent**
+that collaborates, plans, critiques, and iterates — while the human remains in control.
+
+================================================================
+CORE PRODUCT DEFINITION
+================================================================
+
+zerodraft.so helps users go from:
+• zero → outline → draft → refined writing
+with explicit, reversible AI assistance.
+
+AI never overwrites content silently.
+AI proposes, explains, and waits for approval.
+
+================================================================
+AGENTIC AI CONCEPT
+================================================================
+
+The AI is not a single chatbot.
+It is a **multi-capability writing agent** with clear roles:
+
+• Planner — structures outlines and writing plans
+• Drafter — writes section-by-section, never whole documents by default
+• Editor — improves clarity, tone, flow, and coherence
+• Critic — points out gaps, weak arguments, or logical issues
+• Research helper — manages citations and sources
+• Memory keeper — tracks user intent, tone, and document goals
+
+These roles are visible to the user as modes, not hidden abstractions.
+
+================================================================
+PRIMARY UI LAYOUT
+================================================================
+
+Maintain a desktop-first 3-pane layout:
+
+LEFT PANE — Workspace
+• Projects, documents, research notes
+• Writing goals and document intent
+• Agent task history (what the AI has done so far)
+
+CENTER PANE — Editor
+• The primary writing surface
+• Rich text + markdown hybrid
+• Inline AI suggestions, never modal-only
+• Tracked changes, ghost text, inline diffs
+• Outline-first drafting workflow
+• Section-level drafting controls
+
+RIGHT PANE — AI Agent Panel
+• Not a chat log
+• A task-oriented agent console
+• Shows:
+  – Current agent role
+  – Active task
+  – Proposed actions
+  – Reasoning summary (short, optional)
+• Buttons to approve, reject, refine, or redirect
+
+================================================================
+AGENT TASK MODEL
+================================================================
+
+The AI operates through explicit tasks.
+
+Examples:
+• “Create an outline for this document”
+• “Draft section 2 using this outline”
+• “Critique the argument in this section”
+• “Improve clarity without changing meaning”
+• “Add citations for these claims”
+
+Each task:
+• Has a clear goal
+• Shows scope (selection / section / document)
+• Produces previewable output
+• Requires user approval to apply
+
+No background autonomous changes.
+
+================================================================
+EDITOR BEHAVIOR
+================================================================
+
+Design the editor so AI assistance feels native.
+
+Key behaviors:
+• Selection-aware actions (rewrite, expand, critique)
+• Ghost text suggestions (Tab to accept, Esc to reject)
+• Tracked AI edits with Accept / Reject
+• Section-level “Ask agent” actions
+• Inline comments from the Critic agent
+• Outline nodes that can be expanded into prose
+
+AI never hijacks cursor or scroll position.
+
+================================================================
+AGENT MEMORY & INTENT
+================================================================
+
+The AI maintains explicit, user-visible memory:
+
+• Document goal (e.g. blog post, paper, PRD)
+• Target audience
+• Desired tone
+• Constraints (length, formality, stance)
+
+Memory is editable by the user at any time.
+Memory is shown as editable chips or panels.
+
+================================================================
+RESEARCH & CITATIONS
+================================================================
+
+Citations are first-class.
+
+• Inline numbered markers
+• Sources panel with accept/remove controls
+• Clear labeling of placeholders vs verified sources
+• Ability to ask the agent:
+  – “Add citations to this paragraph”
+  – “Check factual accuracy”
+
+No fabricated sources.
+
+================================================================
+AGENT EXPLANATION LEVEL
+================================================================
+
+The agent explains its actions only when useful.
+
+• Short reasoning summaries
+• Optional “Why this suggestion?” toggles
+• No long chain-of-thought dumps
+
+Design UI for trust, not verbosity.
+
+================================================================
+KEYBOARD & POWER USER UX
+================================================================
+
+Design for keyboard-first workflows:
+
+• ⌘K — command palette
+• / — slash commands
+• Tab — accept suggestion
+• Esc — reject suggestion
+• ⌘Z — undo agent actions
+
+Fast, predictable, no animations.
+
+================================================================
+FOCUS & CONTROL
+================================================================
+
+Include a focus mode:
+• Collapses sidebars
+• Centers editor
+• Keeps agent available but quiet
+
+User always feels in control.
+
+================================================================
+WHAT TO AVOID
+================================================================
+
+Do NOT design:
+• Auto-writing entire documents
+• Hidden autonomous behavior
+• Chat-only UX
+• Decorative UI elements
+• Dark patterns or lock-in visuals
+
+================================================================
+DELIVERABLES
+================================================================
+
+Produce:
+• Updated high-fidelity UI mockups
+• Clear agent-first interaction patterns
+• Explicit task-based AI flows
+• Empty, loading, and error states
+• A cohesive redesign that makes zerodraft.so feel
+  like a serious, trustworthy, agentic co-writer
+
+Design with restraint, clarity, and professional rigor.
+```
+
+---
+
+If you want next, I can also give you:
+
+* **Agent role system prompts**
+* **Exact task schema (JSON)**
+* **Human-in-the-loop approval UX spec**
+* **What to cut so v1 doesn’t become bloated**
+
+Just say the word.

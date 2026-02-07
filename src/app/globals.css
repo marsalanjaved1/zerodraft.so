@@ -1,59 +1,133 @@
 @import "tailwindcss";
 
-/* VS Code Dark Theme Colors */
+/* ============================================
+   ZeroDraft White Theme Design System
+   ============================================ */
+
 :root {
-  --primary: #0078d4;
-  /* VS Code blue accent */
-  --background-light: #ffffff;
-  --background-dark: #1e1e1e;
-  /* VS Code editor background */
-  --surface-dark: #252526;
-  /* VS Code sidebar background */
-  --border-dark: #3c3c3c;
-  /* VS Code borders */
-  --text-muted: #858585;
-  /* VS Code muted text */
-  --text-primary: #cccccc;
-  /* VS Code primary text */
-  --accent-blue: #569cd6;
-  /* VS Code blue */
-  --accent-green: #4ec9b0;
-  /* VS Code teal */
-  --accent-yellow: #dcdcaa;
-  /* VS Code yellow */
-  --accent-orange: #ce9178;
-  /* VS Code orange */
+  /* Primary Colors */
+  --primary: #111318;
+  /* Near black - main text */
+  --primary-light: #f3f4f6;
+  /* Gray-100 - light surfaces */
+  --accent: #6366f1;
+  /* Indigo-500 - AI accent */
+  --accent-light: #eef2ff;
+  /* Indigo-50 - AI highlight */
+
+  /* Backgrounds */
+  --background: #ffffff;
+  /* Pure white */
+  --surface: #f9fafb;
+  /* Gray-50 - sidebar bg */
+  --surface-hover: #f3f4f6;
+  /* Gray-100 - hover states */
+
+  /* Borders */
+  --border: #e5e7eb;
+  /* Gray-200 */
+  --border-light: #f3f4f6;
+  /* Gray-100 */
+
+  /* Text */
+  --text-primary: #111318;
+  /* Near black */
+  --text-secondary: #6b7280;
+  /* Gray-500 */
+  --text-muted: #9ca3af;
+  /* Gray-400 */
+
+  /* Semantic Colors */
+  --success: #22c55e;
+  /* Green-500 */
+  --success-bg: #dcfce7;
+  /* Green-100 */
+  --success-text: #166534;
+  /* Green-800 */
+
+  --error: #ef4444;
+  /* Red-500 */
+  --error-bg: #fee2e2;
+  /* Red-100 */
+  --error-text: #991b1b;
+  /* Red-800 */
+
+  /* Diff Colors */
+  --diff-added-bg: #dcfce7;
+  /* Green-100 */
+  --diff-added-text: #166534;
+  /* Green-800 */
+  --diff-added-border: #22c55e;
+  /* Green-500 */
+
+  --diff-removed-bg: #fee2e2;
+  /* Red-100 */
+  --diff-removed-text: #991b1b;
+  /* Red-800 */
+  --diff-removed-border: #dc2626;
+  /* Red-600 */
 }
 
 @theme inline {
   --color-primary: var(--primary);
-  --color-background-light: var(--background-light);
-  --color-background-dark: var(--background-dark);
-  --color-surface-dark: var(--surface-dark);
-  --color-border-dark: var(--border-dark);
+  --color-accent: var(--accent);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
   --color-text-muted: var(--text-muted);
 }
 
-/* Custom Scrollbar - VS Code style */
+/* ============================================
+   Typography
+   ============================================ */
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Serif font for document content */
+.font-serif {
+  font-family: 'Merriweather', Georgia, 'Times New Roman', serif;
+}
+
+/* ============================================
+   Custom Scrollbar - Light Theme
+   ============================================ */
+
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #424242;
-  border-radius: 0;
+  background: #d1d5db;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4f4f4f;
+  background: #9ca3af;
 }
 
-/* Material Symbols Configuration */
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================
+   Material Symbols Configuration
+   ============================================ */
+
 .material-symbols-outlined {
   font-variation-settings:
     'FILL' 0,
@@ -67,252 +141,242 @@
   font-variation-settings: 'FILL' 1;
 }
 
-body {
-  background: var(--background-dark);
-  color: #cccccc;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+/* ============================================
+   Shadows
+   ============================================ */
+
+.shadow-float {
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.08),
+    0 4px 10px -2px rgba(0, 0, 0, 0.04);
 }
 
-/* Tiptap Editor Styles */
-.tiptap-editor {
-  outline: none;
-  color: #d4d4d4;
-}
-
-.tiptap-editor:focus {
-  outline: none;
-}
-
-.tiptap-editor p {
-  margin-bottom: 1rem;
-}
-
-.tiptap-editor h1 {
-  font-size: 1.875rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #ffffff;
-}
-
-.tiptap-editor h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: #ffffff;
-}
-
-.tiptap-editor ul {
-  list-style-type: disc;
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.tiptap-editor code {
-  background: #2d2d2d;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
-  font-size: 0.875rem;
-  color: #ce9178;
-}
-
-.tiptap-editor pre {
-  background: #1e1e1e;
-  border: 1px solid #3c3c3c;
-  border-radius: 0.25rem;
-  padding: 1rem;
-  overflow-x: auto;
-  margin-bottom: 1rem;
-}
-
-.tiptap-editor pre code {
-  background: none;
-  padding: 0;
-  color: #d4d4d4;
-}
-
-/* reactjs-tiptap-editor Dark Theme Overrides */
-.editor-toolbar button {
-  background: transparent;
-  border: none;
-  color: #cccccc;
-  padding: 0.375rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.editor-toolbar button:hover {
-  background: #3c3c3c;
-}
-
-.editor-toolbar button[data-active="true"],
-.editor-toolbar button.is-active {
-  background: #0078d4;
-  color: white;
-}
-
-/* Task List Checkboxes */
-.tiptap-editor ul[data-type="taskList"] {
-  list-style: none;
-  padding-left: 0;
-}
-
-.tiptap-editor ul[data-type="taskList"] li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.tiptap-editor ul[data-type="taskList"] li input[type="checkbox"] {
-  margin-top: 0.25rem;
-  width: 1rem;
-  height: 1rem;
-  accent-color: #0078d4;
-  cursor: pointer;
-}
-
-.tiptap-editor ul[data-type="taskList"] li[data-checked="true"]>div {
-  text-decoration: line-through;
-  color: #858585;
-}
-
-/* Table Styles */
-.tiptap-editor table {
-  border-collapse: collapse;
-  width: 100%;
-  margin-bottom: 1rem;
-}
-
-.tiptap-editor table td,
-.tiptap-editor table th {
-  border: 1px solid #3c3c3c;
-  padding: 0.5rem;
-  min-width: 100px;
-}
-
-.tiptap-editor table th {
-  background: #252526;
-  font-weight: 600;
-}
-
-.tiptap-editor table td {
-  background: #1e1e1e;
-}
-
-/* Blockquote */
-.tiptap-editor blockquote {
-  border-left: 3px solid #0078d4;
-  padding-left: 1rem;
-  margin-left: 0;
-  color: #a0a0a0;
-  font-style: italic;
-}
-
-/* Heading Colors */
-.tiptap-editor h1,
-.tiptap-editor h2,
-.tiptap-editor h3 {
-  color: #ffffff;
-}
-
-.tiptap-editor h3 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-/* Link Styles */
-.tiptap-editor a {
-  color: #569cd6;
-  text-decoration: underline;
-}
-
-.tiptap-editor a:hover {
-  color: #6cb6ff;
-}
-
-/* Horizontal Rule */
-.tiptap-editor hr {
-  border: none;
-  border-top: 1px solid #3c3c3c;
-  margin: 1.5rem 0;
-}
-
-/* Text alignment */
-.tiptap-editor .text-left {
-  text-align: left;
-}
-
-.tiptap-editor .text-center {
-  text-align: center;
-}
-
-.tiptap-editor .text-right {
-  text-align: right;
-}
-
-.tiptap-editor .text-justify {
-  text-align: justify;
+.shadow-subtle {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 /* ============================================
-   Novel Editor / ProseMirror Styles
+   Ghost Text Animation (AI Suggestions)
+   ============================================ */
+
+.ghost-text {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.ghost-text-animation {
+  animation: pulse-ghost 2s infinite ease-in-out;
+}
+
+@keyframes pulse-ghost {
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes ghostTextFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================
+   Diff Styling (Tracked Changes)
+   ============================================ */
+
+.diff-added {
+  background-color: var(--diff-added-bg);
+  color: var(--diff-added-text);
+  border-bottom: 2px solid var(--diff-added-border);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.diff-removed {
+  background-color: var(--diff-removed-bg);
+  color: var(--diff-removed-text);
+  text-decoration: line-through;
+  text-decoration-color: var(--diff-removed-border);
+  text-decoration-thickness: 2px;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Inline Track Changes (Editor) */
+.track-change-deletion {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  text-decoration: line-through;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 2px;
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.track-change-insertion {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border-bottom: 2px solid #16a34a;
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.track-change-group {
+  display: inline;
+  position: relative;
+}
+
+.track-change-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.track-change-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.15s ease;
+}
+
+.track-change-btn-accept {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.track-change-btn-accept:hover {
+  background-color: #22c55e;
+  color: white;
+}
+
+.track-change-btn-reject {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.track-change-btn-reject:hover {
+  background-color: #ef4444;
+  color: white;
+}
+
+.diff-block {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-light);
+  padding: 12px 16px;
+  margin: 8px 0;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Inline Diff Styles (for AI suggested changes) */
+
+/* Inline Diff Styles (for AI suggested changes) */
+.inline-diff-wrapper {
+  display: inline-flex;
+  vertical-align: baseline;
+}
+
+/* ============================================
+   Editor Prose Styles (Novel/TipTap)
    ============================================ */
 
 .novel-editor .ProseMirror {
-  @apply p-8;
+  padding: 2rem;
   min-height: 500px;
+  outline: none;
 }
 
 .novel-editor .ProseMirror .is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #858585;
+  color: var(--text-muted);
   pointer-events: none;
   height: 0;
 }
 
-.novel-editor .ProseMirror .is-empty::before {
-  content: attr(data-placeholder);
-  float: left;
-  color: #858585;
-  pointer-events: none;
-  height: 0;
-}
-
-/* Heading styles */
+/* Headings */
 .novel-editor .ProseMirror h1 {
-  @apply text-3xl font-bold mb-4;
-  color: #ffffff;
+  font-family: 'Merriweather', serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .novel-editor .ProseMirror h2 {
-  @apply text-2xl font-semibold mb-3;
-  color: #ffffff;
+  font-family: 'Merriweather', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
 }
 
 .novel-editor .ProseMirror h3 {
-  @apply text-xl font-semibold mb-2;
-  color: #ffffff;
+  font-family: 'Merriweather', serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
+/* Paragraphs */
 .novel-editor .ProseMirror p {
-  @apply mb-4 leading-relaxed;
-  color: #d4d4d4;
+  font-family: 'Merriweather', serif;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: #374151;
+  margin-bottom: 1.25rem;
 }
 
-/* List styles */
+/* Lists */
 .novel-editor .ProseMirror ul {
-  @apply list-disc pl-6 mb-4;
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .novel-editor .ProseMirror ol {
-  @apply list-decimal pl-6 mb-4;
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .novel-editor .ProseMirror li {
-  @apply mb-1;
+  margin-bottom: 0.25rem;
 }
 
 /* Task list checkboxes */
@@ -328,156 +392,144 @@ body {
   margin-bottom: 0.5rem;
 }
 
-.novel-editor ul[data-type="taskList"] li>label {
-  margin-right: 0.2rem;
-  user-select: none;
-}
-
 .novel-editor ul[data-type="taskList"] li>label input[type="checkbox"] {
   -webkit-appearance: none;
   appearance: none;
-  background-color: #1e1e1e;
+  background-color: white;
   margin: 0;
   cursor: pointer;
-  width: 1.2em;
-  height: 1.2em;
+  width: 1.1em;
+  height: 1.1em;
   position: relative;
   top: 4px;
-  border: 2px solid #3c3c3c;
-  border-radius: 3px;
-  margin-right: 0.3rem;
+  border: 2px solid var(--border);
+  border-radius: 4px;
   display: grid;
   place-content: center;
+  transition: all 0.15s ease;
 }
 
 .novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]:hover {
-  background-color: #3c3c3c;
+  border-color: var(--accent);
 }
 
-.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]::before {
-  content: "";
-  width: 0.65em;
-  height: 0.65em;
-  transform: scale(0);
-  transition: 120ms transform ease-in-out;
-  box-shadow: inset 1em 1em #0078d4;
-  transform-origin: center;
-  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+.novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
 }
 
 .novel-editor ul[data-type="taskList"] li>label input[type="checkbox"]:checked::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
   transform: scale(1);
+  box-shadow: inset 1em 1em white;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 }
 
 .novel-editor ul[data-type="taskList"] li[data-checked="true"]>div>p {
-  color: #858585;
+  color: var(--text-muted);
   text-decoration: line-through;
-  text-decoration-thickness: 2px;
 }
 
 /* Blockquote */
 .novel-editor .ProseMirror blockquote {
-  @apply border-l-4 pl-4 my-4 italic;
-  border-color: #0078d4;
-  color: #a0a0a0;
+  border-left: 4px solid var(--accent);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
-/* Code block */
+/* Code blocks */
 .novel-editor .ProseMirror pre {
-  @apply rounded-lg p-4 my-4 overflow-x-auto;
-  background: #1e1e1e;
-  border: 1px solid #3c3c3c;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
 }
 
 .novel-editor .ProseMirror pre code {
   background: none;
   padding: 0;
-  color: #d4d4d4;
+  color: var(--text-primary);
   font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
   font-size: 0.875rem;
 }
 
 /* Inline code */
 .novel-editor .ProseMirror code {
-  @apply px-1.5 py-0.5 rounded;
-  background: #2d2d2d;
-  color: #ce9178;
+  background: #f1f5f9;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
   font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
   font-size: 0.875rem;
-}
-
-.novel-editor .ProseMirror pre code {
-  background: transparent;
-  color: #d4d4d4;
+  color: #0f172a;
 }
 
 /* Horizontal rule */
 .novel-editor .ProseMirror hr {
-  @apply my-6;
   border: none;
-  border-top: 1px solid #3c3c3c;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
 }
 
 /* Links */
 .novel-editor .ProseMirror a {
-  color: #569cd6;
+  color: var(--accent);
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .novel-editor .ProseMirror a:hover {
-  color: #6cb6ff;
+  color: #4f46e5;
+}
+
+/* Citations */
+.novel-editor .ProseMirror sup.citation {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.novel-editor .ProseMirror sup.citation:hover {
+  text-decoration: underline;
 }
 
 /* Images */
 .novel-editor .ProseMirror img {
-  @apply rounded-lg my-4;
+  border-radius: 8px;
+  margin: 1.5rem 0;
   max-width: 100%;
   height: auto;
-  transition: filter 0.1s ease-in-out;
-}
-
-.novel-editor .ProseMirror img:hover {
-  cursor: pointer;
-  filter: brightness(90%);
 }
 
 .novel-editor .ProseMirror img.ProseMirror-selectednode {
-  outline: 3px solid #0078d4;
-  filter: brightness(90%);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
-/* Image placeholder loading */
-.novel-editor .img-placeholder {
-  position: relative;
+/* Highlight mark */
+.novel-editor .ProseMirror mark {
+  background-color: #fef08a;
+  border-radius: 2px;
+  padding: 0 2px;
 }
 
-.novel-editor .img-placeholder::before {
-  content: "";
-  box-sizing: border-box;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 3px solid #3c3c3c;
-  border-top-color: #0078d4;
-  animation: spinning 0.6s linear infinite;
-}
+/* ============================================
+   Drag Handle
+   ============================================ */
 
-@keyframes spinning {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Drag handle */
 .novel-editor .drag-handle {
   position: fixed;
   opacity: 1;
   transition: opacity ease-in 0.2s;
-  border-radius: 0.25rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' style='fill: rgba(255, 255, 255, 0.5)'%3E%3Cpath d='M3,2 C2.44771525,2 2,1.55228475 2,1 C2,0.44771525 2.44771525,0 3,0 C3.55228475,0 4,0.44771525 4,1 C4,1.55228475 3.55228475,2 3,2 Z M3,6 C2.44771525,6 2,5.55228475 2,5 C2,4.44771525 2.44771525,4 3,4 C3.55228475,4 4,4.44771525 4,5 C4,5.55228475 3.55228475,6 3,6 Z M3,10 C2.44771525,10 2,9.55228475 2,9 C2,8.44771525 2.44771525,8 3,8 C3.55228475,8 4,8.44771525 4,9 C4,9.55228475 3.55228475,10 3,10 Z M7,2 C6.44771525,2 6,1.55228475 6,1 C6,0.44771525 6.44771525,0 7,0 C7.55228475,0 8,0.44771525 8,1 C8,1.55228475 7.55228475,2 7,2 Z M7,6 C6.44771525,6 6,5.55228475 6,5 C6,4.44771525 6.44771525,4 7,4 C7.55228475,4 8,4.44771525 8,5 C8,5.55228475 7.55228475,6 7,6 Z M7,10 C6.44771525,10 6,9.55228475 6,9 C6,8.44771525 6.44771525,8 7,8 C7.55228475,8 8,8.44771525 8,9 C8,9.55228475 7.55228475,10 7,10 Z'%3E%3C/path%3E%3C/svg%3E");
+  border-radius: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' style='fill: rgba(0, 0, 0, 0.3)'%3E%3Cpath d='M3,2 C2.44771525,2 2,1.55228475 2,1 C2,0.44771525 2.44771525,0 3,0 C3.55228475,0 4,0.44771525 4,1 C4,1.55228475 3.55228475,2 3,2 Z M3,6 C2.44771525,6 2,5.55228475 2,5 C2,4.44771525 2.44771525,4 3,4 C3.55228475,4 4,4.44771525 4,5 C4,5.55228475 3.55228475,6 3,6 Z M3,10 C2.44771525,10 2,9.55228475 2,9 C2,8.44771525 2.44771525,8 3,8 C3.55228475,8 4,8.44771525 4,9 C4,9.55228475 3.55228475,10 3,10 Z M7,2 C6.44771525,2 6,1.55228475 6,1 C6,0.44771525 6.44771525,0 7,0 C7.55228475,0 8,0.44771525 8,1 C8,1.55228475 7.55228475,2 7,2 Z M7,6 C6.44771525,6 6,5.55228475 6,5 C6,4.44771525 6.44771525,4 7,4 C7.55228475,4 8,4.44771525 8,5 C8,5.55228475 7.55228475,6 7,6 Z M7,10 C6.44771525,10 6,9.55228475 6,9 C6,8.44771525 6.44771525,8 7,8 C7.55228475,8 8,8.44771525 8,9 C8,9.55228475 7.55228475,10 7,10 Z'%3E%3C/path%3E%3C/svg%3E");
   background-size: calc(0.5em + 0.375rem) calc(0.5em + 0.375rem);
   background-repeat: no-repeat;
   background-position: center;
@@ -488,12 +540,11 @@ body {
 }
 
 .novel-editor .drag-handle:hover {
-  background-color: #3c3c3c;
-  transition: background-color 0.2s;
+  background-color: var(--surface-hover);
 }
 
 .novel-editor .drag-handle:active {
-  background-color: #4c4c4c;
+  background-color: #e5e7eb;
   cursor: grabbing;
 }
 
@@ -505,46 +556,24 @@ body {
 /* Selected node highlight */
 .novel-editor .ProseMirror:not(.dragging) .ProseMirror-selectednode {
   outline: none !important;
-  background-color: rgba(0, 120, 212, 0.15);
+  background-color: var(--accent-light);
   transition: background-color 0.2s;
-  box-shadow: none;
 }
 
-/* Tippy.js base styles */
+/* ============================================
+   Tippy.js / Slash Command Styles
+   ============================================ */
+
 .tippy-box {
   position: relative;
   background-color: transparent;
-  color: #cccccc;
+  color: var(--text-primary);
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.4;
   white-space: normal;
   outline: 0;
   max-width: 400px !important;
-}
-
-.tippy-box[data-placement^=top]>.tippy-arrow {
-  bottom: 0
-}
-
-.tippy-box[data-placement^=top]>.tippy-arrow:before {
-  bottom: -7px;
-  left: 0;
-  border-width: 8px 8px 0;
-  border-top-color: initial;
-  transform-origin: center top
-}
-
-.tippy-box[data-placement^=bottom]>.tippy-arrow {
-  top: 0
-}
-
-.tippy-box[data-placement^=bottom]>.tippy-arrow:before {
-  top: -7px;
-  left: 0;
-  border-width: 0 8px 8px;
-  border-bottom-color: initial;
-  transform-origin: center bottom
 }
 
 .tippy-content {
@@ -556,18 +585,17 @@ body {
   z-index: 9999;
 }
 
-/* Slash command popup styles */
+/* Slash command popup */
 .novel-editor [data-novel-command],
 [data-radix-popper-content-wrapper] {
   z-index: 9999;
 }
 
-/* Slash command list styling */
 .novel-slash-command {
-  background-color: #252526;
-  border: 1px solid #3c3c3c;
+  background-color: white;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   padding: 4px;
   max-height: 330px;
@@ -581,13 +609,13 @@ body {
   padding: 8px 12px;
   border-radius: 6px;
   cursor: pointer;
-  color: #cccccc;
+  color: var(--text-primary);
   transition: background-color 0.15s ease;
 }
 
 .novel-slash-command-item:hover,
 .novel-slash-command-item[aria-selected="true"] {
-  background-color: #3c3c3c;
+  background-color: var(--surface-hover);
 }
 
 .novel-slash-command-item-icon {
@@ -597,31 +625,287 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 6px;
-  border: 1px solid #3c3c3c;
-  background-color: #1e1e1e;
-  color: #cccccc;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--text-secondary);
 }
 
 .novel-slash-command-item-title {
   font-weight: 500;
   font-size: 14px;
-  color: #cccccc;
+  color: var(--text-primary);
 }
 
 .novel-slash-command-item-description {
   font-size: 12px;
-  color: #858585;
+  color: var(--text-muted);
 }
 
 .novel-slash-command-empty {
   padding: 12px 16px;
-  color: #858585;
+  color: var(--text-muted);
   text-align: center;
 }
 
-/* Highlight mark */
-.novel-editor .ProseMirror mark {
-  background-color: #264f78;
-  border-radius: 2px;
-  padding: 0 2px;
+/* ============================================
+   Agent Panel Styles
+   ============================================ */
+
+.agent-message {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.user-message {
+  background: var(--primary);
+  color: white;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.tool-call-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.tool-call-card.running {
+  border-left: 3px solid var(--accent);
+}
+
+.tool-call-card.completed {
+  border-left: 3px solid var(--success);
+}
+
+/* ============================================
+   UI Components
+   ============================================ */
+
+/* Buttons */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #1f2937;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: #d1d5db;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 0.375rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Accept/Reject buttons for diffs */
+.btn-accept {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.btn-accept:hover {
+  background: #bbf7d0;
+}
+
+.btn-reject {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.btn-reject:hover {
+  background: #fecaca;
+}
+
+/* Input fields */
+.input-default {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.input-default:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.input-default::placeholder {
+  color: var(--text-muted);
+}
+
+/* Cards */
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.card-hover:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+/* ============================================
+   Floating Toolbar
+   ============================================ */
+
+.floating-toolbar {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 6px 12px;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.08),
+    0 4px 10px -2px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.floating-toolbar button {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.floating-toolbar button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.floating-toolbar button.active {
+  background: var(--primary);
+  color: white;
+}
+
+.floating-toolbar .divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ============================================
+   Selection Menu (AI Actions)
+   ============================================ */
+
+.selection-menu {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 160px;
+}
+
+.selection-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.selection-menu-item:hover {
+  background: var(--surface-hover);
+}
+
+.selection-menu-item .icon {
+  color: var(--text-muted);
+}
+
+.selection-menu-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
 }

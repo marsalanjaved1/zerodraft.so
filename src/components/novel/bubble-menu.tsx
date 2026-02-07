@@ -9,6 +9,8 @@ import {
     Strikethrough,
     Code,
     Highlighter,
+    Wand2,
+    ChevronDown,
 } from "lucide-react";
 
 interface BubbleButtonProps {
@@ -23,9 +25,9 @@ function BubbleButton({ isActive, onClick, children, title }: BubbleButtonProps)
         <button
             onClick={onClick}
             title={title}
-            className={`p-2 transition-colors ${isActive
-                    ? "bg-[#0078d4] text-white"
-                    : "text-[#cccccc] hover:bg-[#3c3c3c]"
+            className={`p-2 transition-colors rounded ${isActive
+                ? "bg-indigo-100 text-indigo-700"
+                : "text-gray-600 hover:bg-gray-100"
                 }`}
         >
             {children}
@@ -34,7 +36,7 @@ function BubbleButton({ isActive, onClick, children, title }: BubbleButtonProps)
 }
 
 function BubbleDivider() {
-    return <div className="w-px h-6 bg-[#3c3c3c]" />;
+    return <div className="w-px h-6 bg-gray-200" />;
 }
 
 export function EditorBubbleMenu() {
@@ -49,28 +51,40 @@ export function EditorBubbleMenu() {
             tippyOptions={{
                 placement: "top",
             }}
-            className="flex items-center bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-xl overflow-hidden"
+            className="flex items-center bg-white border border-gray-200 rounded-xl shadow-lg py-1 px-1 gap-0.5"
         >
             <Fragment>
+                {/* AI Actions */}
+                <button
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="AI Actions"
+                >
+                    <Wand2 size={14} />
+                    <span>Rewrite</span>
+                    <ChevronDown size={12} />
+                </button>
+
+                <BubbleDivider />
+
                 {/* Text formatting */}
                 <BubbleButton
                     isActive={editor.isActive("bold")}
                     onClick={() => editor.chain().focus().toggleBold().run()}
-                    title="Bold (Ctrl+B)"
+                    title="Bold (⌘B)"
                 >
                     <Bold size={iconSize} />
                 </BubbleButton>
                 <BubbleButton
                     isActive={editor.isActive("italic")}
                     onClick={() => editor.chain().focus().toggleItalic().run()}
-                    title="Italic (Ctrl+I)"
+                    title="Italic (⌘I)"
                 >
                     <Italic size={iconSize} />
                 </BubbleButton>
                 <BubbleButton
                     isActive={editor.isActive("underline")}
                     onClick={() => editor.chain().focus().toggleUnderline().run()}
-                    title="Underline (Ctrl+U)"
+                    title="Underline (⌘U)"
                 >
                     <Underline size={iconSize} />
                 </BubbleButton>

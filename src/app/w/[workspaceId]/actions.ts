@@ -51,17 +51,55 @@ export async function importDocument(workspaceId: string, formData: FormData, pa
         type = "file";
 
     } else if (file.type === "application/pdf") {
-        // For PDFs, we don't parse text anymore. We just store the reference.
-        // Get Public URL (assuming bucket is public or we perform client-side signing later)
+        // Get Public URL for fallback PDF viewer
         const { data: { publicUrl } } = supabase.storage.from('workspace-files').getPublicUrl(filePath);
 
-        content = JSON.stringify({
-            type: 'pdf',
-            url: publicUrl,
-            filePath: filePath,
-            mimeType: 'application/pdf',
-            size: file.size
-        });
+        // Call LlamaParse API to extract text
+        try {
+            const pdfFormData = new FormData();
+            pdfFormData.append('file', file);
+
+            const parseResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/parse-pdf`, {
+                method: 'POST',
+                body: pdfFormData,
+            });
+
+            if (parseResponse.ok) {
+                const parseResult = await parseResponse.json();
+                // Store extracted markdown as content, with file URL as metadata
+                content = JSON.stringify({
+                    type: 'pdf',
+                    extracted: true,
+                    markdown: parseResult.markdown,
+                    url: publicUrl,
+                    filePath: filePath,
+                    mimeType: 'application/pdf',
+                    size: file.size
+                });
+            } else {
+                // Fallback to just storing reference if parsing fails
+                console.error('PDF parsing failed, storing reference only');
+                content = JSON.stringify({
+                    type: 'pdf',
+                    extracted: false,
+                    url: publicUrl,
+                    filePath: filePath,
+                    mimeType: 'application/pdf',
+                    size: file.size
+                });
+            }
+        } catch (parseError) {
+            console.error('PDF parsing error:', parseError);
+            // Fallback to just storing reference
+            content = JSON.stringify({
+                type: 'pdf',
+                extracted: false,
+                url: publicUrl,
+                filePath: filePath,
+                mimeType: 'application/pdf',
+                size: file.size
+            });
+        }
         type = "file";
     }
 

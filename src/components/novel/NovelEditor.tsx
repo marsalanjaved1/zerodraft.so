@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback, DragEvent } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef, DragEvent } from "react";
 import {
     EditorRoot,
     EditorContent,
@@ -11,7 +11,7 @@ import {
     handleCommandNavigation,
 } from "novel";
 import type { EditorInstance } from "novel";
-import { Folder, FileText, Upload, FileUp } from "lucide-react";
+import { FileUp, ToggleLeft, ToggleRight } from "lucide-react";
 import type { FileNode } from "@/app/page";
 
 import { defaultExtensions } from "./extensions";
@@ -19,6 +19,7 @@ import { slashCommand, suggestionItems } from "./slash-command";
 import { EditorBubbleMenu } from "./bubble-menu";
 import { SearchBar } from "@/components/SearchBar";
 import { useEditorSearch } from "@/lib/hooks/use-editor-search";
+import { useGhostText } from "@/lib/hooks/use-ghost-text";
 
 export interface EditorActions {
     undo: () => void;
@@ -30,6 +31,8 @@ export interface EditorActions {
     getHTML: () => string;
     getText: () => string;
     getWordCount: () => { words: number; characters: number };
+    insertText: (text: string) => void;
+    applyInlineChange: (original: string, suggested: string, changeId: string) => boolean;
 }
 
 interface NovelEditorProps {
@@ -38,6 +41,9 @@ interface NovelEditorProps {
     onContentChange: (content: string) => void;
     onEditorReady?: (actions: EditorActions) => void;
     onFileImport?: (name: string, content: string) => void;
+    enableGhostText?: boolean;
+    ghostTextModel?: string;
+    onSuggestEdit?: (change: { original: string; suggested: string; reason?: string }) => void;
 }
 
 export function NovelEditor({
@@ -46,11 +52,29 @@ export function NovelEditor({
     onContentChange,
     onEditorReady,
     onFileImport,
+    enableGhostText = false,
+    ghostTextModel = "anthropic/claude-haiku-4.5",
+    onSuggestEdit
 }: NovelEditorProps) {
     const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
     const [openNode, setOpenNode] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [ghostTextEnabled, setGhostTextEnabled] = useState(enableGhostText);
+    const editorRef = useRef<HTMLDivElement>(null);
+
+    // Ghost text hook
+    const {
+        suggestion: ghostSuggestion,
+        isLoading: ghostLoading,
+        triggerSuggestion,
+        accept: acceptGhost,
+        dismiss: dismissGhost
+    } = useGhostText({
+        enabled: ghostTextEnabled,
+        model: ghostTextModel,
+        context: file ? { fileName: file.name, fileContent: content?.slice(0, 2000) } : undefined
+    });
 
     // Drag and drop handlers
     const handleDragEnter = useCallback((e: DragEvent) => {
@@ -62,7 +86,6 @@ export function NovelEditor({
     const handleDragLeave = useCallback((e: DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        // Only set false if leaving the main container
         if (e.currentTarget === e.target) {
             setIsDragging(false);
         }
@@ -88,12 +111,9 @@ export function NovelEditor({
             try {
                 let fileContent = '';
 
-                // Handle different file types
                 if (extension === 'txt' || extension === 'md' || extension === 'markdown') {
                     fileContent = await file.text();
-                    // Convert markdown to HTML for the editor
                     if (extension === 'md' || extension === 'markdown') {
-                        // Simple markdown-to-HTML conversion for common elements
                         fileContent = markdownToHtml(fileContent);
                     }
                 } else if (extension === 'json') {
@@ -107,7 +127,6 @@ export function NovelEditor({
                 } else if (extension === 'html' || extension === 'htm') {
                     fileContent = await file.text();
                 } else {
-                    // Unsupported format - try to read as text anyway
                     try {
                         fileContent = await file.text();
                     } catch {
@@ -116,11 +135,9 @@ export function NovelEditor({
                     }
                 }
 
-                // Either import as new file or insert into current editor
                 if (onFileImport) {
                     onFileImport(fileName, fileContent);
                 } else if (editorInstance) {
-                    // Insert content at cursor position
                     editorInstance.chain().focus().insertContent(fileContent).run();
                 }
             } catch (error) {
@@ -129,37 +146,80 @@ export function NovelEditor({
         }
     }, [editorInstance, onFileImport]);
 
-    // Simple markdown to HTML converter
     const markdownToHtml = (md: string): string => {
         return md
-            // Headers
             .replace(/^### (.*$)/gm, '<h3>$1</h3>')
             .replace(/^## (.*$)/gm, '<h2>$1</h2>')
             .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            // Bold
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            // Italic
             .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            // Code blocks
             .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-            // Inline code
             .replace(/`(.*?)`/g, '<code>$1</code>')
-            // Links
             .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>')
-            // Bullet lists
             .replace(/^\- (.*$)/gm, '<li>$1</li>')
-            // Numbered lists
             .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
-            // Paragraphs (double newlines)
             .replace(/\n\n/g, '</p><p>')
-            // Wrap in paragraph
             .replace(/^(.+)$/gm, (match) => {
                 if (match.startsWith('<')) return match;
                 return `<p>${match}</p>`;
             });
     };
 
-    // Search functionality
+    // Apply inline tracked change to editor using styled markers
+    const applyInlineChange = useCallback((original: string, suggested: string, changeId: string) => {
+        if (!editorInstance) {
+            console.warn("applyInlineChange: No editor instance");
+            return false;
+        }
+
+        // Find the text position in the document
+        const { doc } = editorInstance.state;
+        let foundPos: number | null = null;
+        let foundEndPos: number | null = null;
+
+        doc.descendants((node, pos) => {
+            if (foundPos !== null) return false; // Already found
+            if (node.isText && node.text) {
+                const index = node.text.indexOf(original);
+                if (index !== -1) {
+                    foundPos = pos + index;
+                    foundEndPos = foundPos + original.length;
+                    return false; // Stop searching
+                }
+            }
+        });
+
+        if (foundPos === null || foundEndPos === null) {
+            console.warn("applyInlineChange: Could not find original text in document:", original);
+            return false;
+        }
+
+        console.log("applyInlineChange: Found text at position", foundPos, "to", foundEndPos);
+
+        // Replace the original text with the inlineDiff node
+        try {
+            editorInstance
+                .chain()
+                .focus()
+                .deleteRange({ from: foundPos, to: foundEndPos })
+                .insertContentAt(foundPos, {
+                    type: "inlineDiff",
+                    attrs: {
+                        original,
+                        suggested,
+                        changeId,
+                    }
+                })
+                .run();
+
+            console.log("applyInlineChange: Successfully applied inline change");
+            return true;
+        } catch (error) {
+            console.error("applyInlineChange: Error applying change:", error);
+            return false;
+        }
+    }, [editorInstance]);
+
     const {
         query: searchQuery,
         setQuery: setSearchQuery,
@@ -172,12 +232,10 @@ export function NovelEditor({
         clear: clearSearch,
     } = useEditorSearch({ editor: editorInstance });
 
-    // Extensions including slash command
     const extensions = useMemo(() => {
         return [...defaultExtensions, slashCommand];
     }, []);
 
-    // Keyboard shortcuts for search (Cmd+F)
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
@@ -190,13 +248,11 @@ export function NovelEditor({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    // Close search and clear
     const handleCloseSearch = useCallback(() => {
         setIsSearchOpen(false);
         clearSearch();
     }, [clearSearch]);
 
-    // Expose editor actions when editor is ready
     useEffect(() => {
         if (editorInstance && onEditorReady) {
             const actions: EditorActions = {
@@ -216,12 +272,14 @@ export function NovelEditor({
                         characters: text.length,
                     };
                 },
+                insertText: (text: string) =>
+                    editorInstance.chain().focus().insertContent(text).run(),
+                applyInlineChange,
             };
             onEditorReady(actions);
         }
     }, [editorInstance, onEditorReady]);
 
-    // Update content when file changes
     useEffect(() => {
         if (editorInstance && content !== editorInstance.getHTML()) {
             editorInstance.commands.setContent(content);
@@ -231,36 +289,33 @@ export function NovelEditor({
     if (!file) {
         return (
             <main
-                className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative items-center justify-center"
+                className="flex-1 flex flex-col bg-white overflow-hidden relative items-center justify-center"
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
             >
                 {isDragging ? (
-                    <div className="absolute inset-0 bg-[#007acc]/20 border-2 border-dashed border-[#007acc] rounded-lg m-4 flex items-center justify-center z-50">
+                    <div className="absolute inset-0 bg-indigo-50 border-2 border-dashed border-indigo-300 rounded-lg m-4 flex items-center justify-center z-50">
                         <div className="text-center">
-                            <FileUp className="w-16 h-16 mx-auto mb-4 text-[#007acc]" />
-                            <p className="text-lg text-[#007acc] font-medium">Drop file to import</p>
-                            <p className="text-sm text-[#858585] mt-2">.txt, .md, .json, .html supported</p>
+                            <FileUp className="w-16 h-16 mx-auto mb-4 text-indigo-500" />
+                            <p className="text-lg text-indigo-600 font-medium">Drop file to import</p>
+                            <p className="text-sm text-gray-500 mt-2">.txt, .md, .json, .html supported</p>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-[#858585] text-center">
-                        <FileText className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg">Select a file to start editing</p>
-                        <p className="text-sm mt-2 opacity-75">or drag & drop a file here</p>
+                    <div className="text-gray-400 text-center">
+                        <p className="text-sm mb-1">Select a document to start editing</p>
+                        <p className="text-xs text-gray-300">or drag & drop a file here</p>
                     </div>
                 )}
             </main>
         );
     }
 
-    const pathParts = file.path.split("/").filter(Boolean);
-
     return (
         <main
-            className="flex-1 flex flex-col bg-[#1e1e1e] overflow-hidden relative"
+            className="flex-1 flex flex-col bg-white overflow-hidden relative"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}
@@ -268,40 +323,14 @@ export function NovelEditor({
         >
             {/* Drag Overlay */}
             {isDragging && (
-                <div className="absolute inset-0 bg-[#007acc]/20 border-2 border-dashed border-[#007acc] rounded-lg m-2 flex items-center justify-center z-50 pointer-events-none">
-                    <div className="text-center bg-[#1e1e1e]/90 px-8 py-6 rounded-lg">
-                        <FileUp className="w-12 h-12 mx-auto mb-3 text-[#007acc]" />
-                        <p className="text-lg text-[#007acc] font-medium">Drop to insert content</p>
-                        <p className="text-sm text-[#858585] mt-1">.txt, .md, .json, .html</p>
+                <div className="absolute inset-0 bg-indigo-50 border-2 border-dashed border-indigo-300 rounded-lg m-2 flex items-center justify-center z-50 pointer-events-none">
+                    <div className="text-center bg-white/90 px-8 py-6 rounded-xl shadow-lg">
+                        <FileUp className="w-12 h-12 mx-auto mb-3 text-indigo-500" />
+                        <p className="text-lg text-indigo-600 font-medium">Drop to insert content</p>
+                        <p className="text-sm text-gray-500 mt-1">.txt, .md, .json, .html</p>
                     </div>
                 </div>
             )}
-
-            {/* Breadcrumbs Bar */}
-            <div className="flex items-center justify-between px-4 py-1.5 border-b border-[#3c3c3c] bg-[#252526]">
-                <div className="flex items-center gap-1.5 text-[13px]">
-                    {pathParts.map((part, index) => (
-                        <span key={index} className="flex items-center gap-1.5">
-                            {index > 0 && <span className="text-[#858585]">/</span>}
-                            {index === pathParts.length - 1 ? (
-                                <span className="text-[#cccccc] flex items-center gap-1">
-                                    <FileText className="w-4 h-4 text-[#519aba]" />
-                                    {part}
-                                </span>
-                            ) : (
-                                <span className="text-[#858585] flex items-center gap-1">
-                                    <Folder className="w-4 h-4 text-[#dcb67a]" />
-                                    {part}
-                                </span>
-                            )}
-                        </span>
-                    ))}
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-[#858585]">Novel Editor</span>
-                    <span className="text-[11px] text-[#858585]">UTF-8</span>
-                </div>
-            </div>
 
             {/* Novel Editor */}
             <div className="flex-1 overflow-y-auto relative">
@@ -309,22 +338,46 @@ export function NovelEditor({
                     <EditorContent
                         immediatelyRender={false}
                         extensions={extensions}
-                        className="novel-editor px-8 py-6 md:px-16 lg:px-24"
+                        className="novel-editor px-8 py-8 md:px-16 lg:px-24"
                         editorProps={{
                             handleDOMEvents: {
-                                keydown: (_view, event) => handleCommandNavigation(event),
+                                keydown: (_view, event) => {
+                                    // Handle Tab to accept ghost text
+                                    if (event.key === "Tab" && !event.shiftKey && ghostSuggestion) {
+                                        event.preventDefault();
+                                        if (editorInstance) {
+                                            editorInstance.chain().focus().insertContent(ghostSuggestion).run();
+                                        }
+                                        acceptGhost();
+                                        return true;
+                                    }
+                                    // Handle Escape to dismiss ghost text
+                                    if (event.key === "Escape" && ghostSuggestion) {
+                                        event.preventDefault();
+                                        dismissGhost();
+                                        return true;
+                                    }
+                                    return handleCommandNavigation(event);
+                                },
                             },
                             attributes: {
                                 class:
-                                    "prose prose-invert prose-lg max-w-3xl mx-auto focus:outline-none min-h-[500px]",
+                                    "prose prose-lg max-w-3xl mx-auto focus:outline-none min-h-[500px] font-serif",
                             },
                         }}
                         onUpdate={({ editor }) => {
-                            onContentChange(editor.getHTML());
+                            const html = editor.getHTML();
+                            onContentChange(html);
+
+                            // Trigger ghost text suggestion after a pause
+                            if (ghostTextEnabled) {
+                                const text = editor.getText();
+                                const cursorPos = editor.state.selection.from;
+                                triggerSuggestion(text, cursorPos);
+                            }
                         }}
                         onCreate={({ editor }) => {
                             setEditorInstance(editor);
-                            // Set initial content if provided
                             if (content) {
                                 editor.commands.setContent(content);
                             }
@@ -347,8 +400,8 @@ export function NovelEditor({
                         />
 
                         {/* Slash Command Menu */}
-                        <EditorCommand className="z-50 h-auto max-h-[330px] overflow-y-auto rounded-lg border border-[#3c3c3c] bg-[#252526] p-2 shadow-2xl">
-                            <EditorCommandEmpty className="px-2 py-4 text-[#858585] text-center">
+                        <EditorCommand className="z-50 h-auto max-h-[330px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                            <EditorCommandEmpty className="px-2 py-4 text-gray-400 text-center text-sm">
                                 No results found
                             </EditorCommandEmpty>
                             <EditorCommandList>
@@ -357,14 +410,14 @@ export function NovelEditor({
                                         value={item.title}
                                         onCommand={(val) => item.command?.(val)}
                                         key={item.title}
-                                        className="flex items-center gap-3 px-2 py-2 rounded-md cursor-pointer text-[#cccccc] hover:bg-[#3c3c3c] aria-selected:bg-[#3c3c3c]"
+                                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer text-gray-700 hover:bg-gray-50 aria-selected:bg-indigo-50"
                                     >
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#3c3c3c] bg-[#1e1e1e] text-[#cccccc]">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-600">
                                             {item.icon}
                                         </div>
                                         <div>
-                                            <p className="font-medium">{item.title}</p>
-                                            <p className="text-xs text-[#858585]">{item.description}</p>
+                                            <p className="font-medium text-gray-900">{item.title}</p>
+                                            <p className="text-xs text-gray-500">{item.description}</p>
                                         </div>
                                     </EditorCommandItem>
                                 ))}
@@ -372,6 +425,51 @@ export function NovelEditor({
                         </EditorCommand>
                     </EditorContent>
                 </EditorRoot>
+
+                {/* Autocomplete Toggle & Ghost Text Indicator */}
+                <div className="fixed bottom-24 right-[340px] z-50 flex items-center gap-2">
+                    {/* Toggle Button */}
+                    <button
+                        onClick={() => setGhostTextEnabled(!ghostTextEnabled)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border shadow-sm text-xs font-medium transition-colors ${ghostTextEnabled
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                            }`}
+                        title={ghostTextEnabled ? 'Disable autocomplete' : 'Enable autocomplete'}
+                    >
+                        {ghostTextEnabled ? (
+                            <ToggleRight className="w-4 h-4" />
+                        ) : (
+                            <ToggleLeft className="w-4 h-4" />
+                        )}
+                        <span>Autocomplete</span>
+                    </button>
+
+                    {/* Suggestion Popup */}
+                    {(ghostSuggestion || ghostLoading) && (
+                        <div className="bg-white border border-gray-200 shadow-lg rounded-lg px-3 py-2 max-w-sm">
+                            {ghostLoading ? (
+                                <div className="flex items-center gap-2 text-sm text-gray-500">
+                                    <span className="inline-block w-3 h-3 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin" />
+                                    <span>Thinking...</span>
+                                </div>
+                            ) : ghostSuggestion ? (
+                                <div>
+                                    <p className="text-sm text-gray-600 italic mb-1">
+                                        {ghostSuggestion.length > 80 ? ghostSuggestion.slice(0, 80) + "..." : ghostSuggestion}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">Tab</kbd>
+                                        <span>to accept</span>
+                                        <span className="mx-1">•</span>
+                                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border border-gray-200">Esc</kbd>
+                                        <span>to dismiss</span>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
+                </div>
             </div>
         </main>
     );
