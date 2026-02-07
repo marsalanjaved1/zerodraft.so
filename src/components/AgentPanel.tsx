@@ -197,8 +197,7 @@ export function AgentPanel({
             chat_id: sessionId,
             role: message.role,
             content: message.content,
-            tool_calls: message.toolCalls ? message.toolCalls : null,
-            updated_at: new Date().toISOString()
+            tool_calls: message.toolCalls ? message.toolCalls : null
         });
     }, [supabase]);
     const [input, setInput] = useState("");
