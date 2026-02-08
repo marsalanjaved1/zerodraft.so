@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>zerodraft.so | Write with intent, not prompts.</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;family=Source+Serif+4:opsz,wght@8..60,400;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b6cee",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "serif": ["Source Serif 4", "serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .serif-headline {
+            font-family: 'Source Serif 4', serif;
+        }
+    </style>
+</head>
+
+<body class="bg-white text-[#111318] font-display selection:bg-primary/20">
+    <div class="relative flex min-h-screen flex-col overflow-x-hidden">
+        <!-- Navigation -->
+        <header class="sticky top-0 z-50 w-full border-b border-[#f0f2f4] bg-white/80 backdrop-blur-md">
+            <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+                <div class="flex items-center gap-2">
+                    <div class="text-primary flex items-center justify-center">
+                        <span class="material-symbols-outlined text-3xl font-bold">edit_note</span>
+                    </div>
+                    <h2 class="text-xl font-bold tracking-tight text-[#111318] serif-headline">zerodraft.so</h2>
+                </div>
+                <nav class="hidden md:flex flex-1 justify-center gap-10">
+                    <a class="text-sm font-medium text-[#616f89] hover:text-primary transition-colors" href="#story">Why
+                        I Built This</a>
+                    <a class="text-sm font-medium text-[#616f89] hover:text-primary transition-colors"
+                        href="#features">Features</a>
+                </nav>
+                <div class="flex items-center gap-4">
+                    <button
+                        class="hidden sm:flex text-sm font-bold text-[#111318] px-4 py-2 hover:bg-[#f0f2f4] rounded-lg transition-colors">Log
+                        In</button>
+                    <button
+                        class="flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-all">
+                        Start Writing
+                    </button>
+                </div>
+            </div>
+        </header>
+        <main class="flex-1">
+            <!-- Hero Section -->
+            <section class="mx-auto max-w-7xl px-6 py-20 text-center lg:px-10 lg:py-32">
+                <div class="mx-auto max-w-4xl flex flex-col items-center">
+                    <h1
+                        class="serif-headline text-5xl font-semibold leading-[1.1] tracking-tight text-[#111318] sm:text-7xl lg:text-8xl">
+                        The Agentic AI Editor.
+                    </h1>
+                    <p class="mt-8 max-w-2xl text-lg leading-relaxed text-[#616f89] sm:text-xl">
+                        Stop copy-pasting. ZeroDraft is an open-source web workspace where AI agents read, write, and
+                        manage your files directly in the browser.
+                    </p>
+                    <div class="mt-10 flex flex-wrap justify-center gap-4">
+                        <button
+                            class="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg hover:shadow-xl hover:translate-y-[-1px] transition-all">
+                            Start Writing Now
+                        </button>
+                        <a href="#"
+                            class="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-[#f0f2f4] px-8 text-base font-bold text-[#111318] hover:bg-[#e5e7eb] transition-all gap-2">
+                            <!-- GitHub Icon -->
+                            <svg viewBox="0 0 24 24" class="h-5 w-5 fill-current" aria-hidden="true">
+                                <path fill-rule="evenodd"
+                                    d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                                    clip-rule="evenodd"></path>
+                            </svg>
+                            View on GitHub
+                        </a>
+                    </div>
+                </div>
+                <!-- Product Preview -->
+                <div
+                    class="mt-20 overflow-hidden rounded-xl border border-[#dbdfe6] bg-[#fcfcfd] p-2 shadow-2xl lg:mt-32">
+                    <div class="rounded-lg border border-[#dbdfe6] bg-white shadow-inner overflow-hidden">
+                        <div class="flex items-center gap-2 border-b border-[#dbdfe6] bg-[#f8f9fa] px-4 py-3">
+                            <div class="flex gap-1.5">
+                                <div class="size-3 rounded-full bg-[#ff5f57]"></div>
+                                <div class="size-3 rounded-full bg-[#febc2e]"></div>
+                                <div class="size-3 rounded-full bg-[#28c840]"></div>
+                            </div>
+                            <div class="mx-auto text-xs font-medium text-[#616f89]">Untitled Draft — zerodraft.so</div>
+                        </div>
+                        <div class="aspect-[16/9] w-full bg-cover bg-center bg-gray-50"
+                            data-alt="Screenshot of a 3-pane professional writing editor with ghost text and AI sidebar">
+                            <div class="h-full w-full bg-white/10 backdrop-blur-[2px] flex items-center justify-center">
+                                <div
+                                    class="bg-white/95 p-8 rounded-lg shadow-xl border border-gray-200/50 max-w-3xl w-full mx-6 flex flex-col gap-4">
+                                    <div class="h-4 w-1/3 bg-gray-100 rounded"></div>
+                                    <div class="space-y-3">
+                                        <div class="h-3 w-full bg-gray-50 rounded"></div>
+                                        <div class="h-3 w-full bg-gray-50 rounded"></div>
+                                        <div class="h-3 w-[90%] bg-gray-50 rounded"></div>
+                                        <div class="h-3 w-[95%] text-primary/40 font-medium">This is where the
+                                            intent-based co-writing happens...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Social Proof -->
+            <!-- Origin Story -->
+            <section class="mx-auto max-w-3xl px-6 py-20 lg:px-10" id="story">
+                <div class="prose prose-lg text-[#616f89] leading-relaxed mx-auto">
+                    <h2 class="serif-headline text-3xl font-bold text-[#111318] mb-8">Why I built this.</h2>
+                    <p class="mb-6">
+                        I work as a software engineer at Amazon. Every day, I use AI tools like Cursor to blast through
+                        code. The context is instant, and I feel superhuman.
+                    </p>
+                    <p class="mb-6">
+                        But then I look at my PMs and Sales teams. They are drowning.
+                    </p>
+                    <p class="mb-6">
+                        They're stuck in Microsoft Word, navigating 1,000 open Chrome tabs, frantically searching for
+                        information buried in folders. When they try to use AI, they have to copy-paste context back and
+                        forth, losing hours to formatting and friction.
+                    </p>
+                    <p class="mb-6 font-bold text-[#111318]">
+                        I realized: Why should engineers have all the fun?
+                    </p>
+                    <p class="mb-6">
+                        I built ZeroDraft to bring that same 'Cursor-like' power to writing specs, RFPs, and contracts.
+                    </p>
+                    <div class="border-l-4 border-primary/20 bg-primary/5 p-6 my-8 rounded-r-lg">
+                        <p class="font-medium text-[#111318] text-xl serif-headline italic">
+                            "It's basically Cursor, but for documents. Instead of editing code, you can edit docs, read
+                            PDFs, and manage your knowledge base directly."
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 mt-8">
+                        <div
+                            class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                            A</div>
+                        <div>
+                            <div class="font-bold text-[#111318] text-sm">Arsalan</div>
+                            <div class="text-xs text-[#616f89]">Creator of ZeroDraft</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Minimal Feature Grid -->
+            <section class="bg-[#fcfcfd] border-y border-[#f0f2f4] py-24" id="features">
+                <div class="mx-auto max-w-7xl px-6 lg:px-10">
+                    <div class="grid gap-12 md:grid-cols-3">
+                        <div class="flex flex-col gap-4">
+                            <div class="flex size-12 items-center justify-center rounded-lg bg-[#111318] text-white">
+                                <span class="material-symbols-outlined">smart_toy</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-[#111318]">It’s Agentic</h3>
+                            <p class="text-[#616f89] leading-relaxed">It doesn't just chat. It uses tools to list your
+                                files, read content, and edit your documents directly.</p>
+                        </div>
+                        <div class="flex flex-col gap-4">
+                            <div class="flex size-12 items-center justify-center rounded-lg bg-[#111318] text-white">
+                                <span class="material-symbols-outlined">code</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-[#111318]">It’s Open Source</h3>
+                            <p class="text-[#616f89] leading-relaxed">Transparent code. Bring your own keys. No hidden
+                                prompt injection. You are in control.</p>
+                        </div>
+                        <div class="flex flex-col gap-4">
+                            <div class="flex size-12 items-center justify-center rounded-lg bg-[#111318] text-white">
+                                <span class="material-symbols-outlined">edit_document</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-[#111318]">It’s a Workspace</h3>
+                            <p class="text-[#616f89] leading-relaxed">Not a chatbot window. A full markdown editor
+                                designed for long-form writing, specs, and documentation.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <!-- Final CTA -->
+            <section class="mx-auto max-w-7xl px-6 py-24 text-center lg:px-10 lg:py-32">
+                <div class="rounded-3xl bg-[#111318] p-12 lg:p-24 overflow-hidden relative">
+                    <!-- Subtle background texture -->
+                    <div class="absolute inset-0 opacity-10 pointer-events-none"
+                        style="background-image: radial-gradient(circle at 2px 2px, #fff 1px, transparent 0); background-size: 40px 40px;">
+                    </div>
+                    <div class="relative z-10">
+                        <h2 class="serif-headline text-4xl font-bold text-white sm:text-5xl lg:text-6xl">Ready to work
+                            at the speed of thought?</h2>
+                        <p class="mx-auto mt-6 max-w-2xl text-lg text-gray-400">Join the open-source revolution.</p>
+                        <div class="mt-10 flex flex-wrap justify-center gap-4">
+                            <button
+                                class="flex h-14 items-center justify-center rounded-lg bg-primary px-10 text-base font-bold text-white shadow-lg hover:shadow-primary/20 transition-all">
+                                Start Writing Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <!-- Footer -->
+        <footer class="border-t border-[#f0f2f4] py-16">
+            <div class="mx-auto max-w-7xl px-6 lg:px-10">
+                <div class="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-2xl font-bold">edit_note</span>
+                            <h2 class="text-lg font-bold serif-headline">zerodraft.so</h2>
+                        </div>
+                        <p class="text-sm text-[#616f89]">Open Source. Web Based. Built for the rest of us.</p>
+                    </div>
+                </div>
+                <div
+                    class="mt-16 flex flex-col items-center justify-between gap-6 border-t border-[#f0f2f4] pt-8 sm:flex-row">
+                    <p class="text-xs text-[#616f89]">© 2024 zerodraft.so. All rights reserved.</p>
+                    <div class="flex gap-6">
+                        <a class="text-[#616f89] hover:text-primary" href="#"><span
+                                class="material-symbols-outlined text-xl">share</span></a>
+                        <a class="text-[#616f89] hover:text-primary" href="#"><span
+                                class="material-symbols-outlined text-xl">alternate_email</span></a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>

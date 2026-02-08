@@ -12,7 +12,7 @@ import {
 } from "novel";
 import type { EditorInstance } from "novel";
 import { FileUp, ToggleLeft, ToggleRight } from "lucide-react";
-import type { FileNode } from "@/app/page";
+import type { FileNode } from "@/lib/types";
 
 import { defaultExtensions } from "./extensions";
 import { slashCommand, suggestionItems } from "./slash-command";

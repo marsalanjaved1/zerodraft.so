@@ -11,7 +11,7 @@ import {
     AlignLeft, AlignCenter, AlignRight,
     Undo, Redo, Highlighter
 } from "lucide-react";
-import type { FileNode } from "@/app/page";
+import type { FileNode } from "@/lib/types";
 
 // Import Tiptap extensions directly
 import StarterKit from "@tiptap/starter-kit";

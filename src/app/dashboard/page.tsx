@@ -5,7 +5,11 @@ import { createWorkspace } from './actions'
 import { Header } from '@/components/dashboard/Header'
 import { WorkspaceCard } from '@/components/dashboard/WorkspaceCard'
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: { q?: string }
+}) {
     const supabase = await createClient()
 
     const {
@@ -16,11 +20,18 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    const { data: workspaces } = await supabase
+    let query = supabase
         .from('workspaces')
         .select('*')
         .eq('owner_id', user.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
+
+    if (searchParams.q) {
+        query = query.ilike('name', `%${searchParams.q}%`)
+    }
+
+    const { data: workspaces } = await query
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -32,19 +43,6 @@ export default async function DashboardPage() {
                     {/* Section Header */}
                     <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Recent Documents</h2>
-                        <div className="flex items-center gap-2 bg-surface-light p-1 rounded-lg border border-border-light">
-                            <button className="p-1.5 rounded-md bg-white text-primary shadow-sm">
-                                <span className="material-symbols-outlined text-[20px]">grid_view</span>
-                            </button>
-                            <button className="p-1.5 rounded-md text-slate-500 hover:text-slate-700">
-                                <span className="material-symbols-outlined text-[20px]">list</span>
-                            </button>
-                            <div className="w-[1px] h-4 bg-border-light mx-1"></div>
-                            <button className="flex items-center gap-1 px-2 py-1 text-sm font-medium text-slate-600 hover:text-slate-900">
-                                <span className="material-symbols-outlined text-[18px]">sort</span>
-                                <span>Sort</span>
-                            </button>
-                        </div>
                     </div>
 
                     {/* Document Grid */}

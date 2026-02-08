@@ -1,17 +1,14 @@
 
 import { Sidebar } from '@/components/dashboard/Sidebar'
-import { getRecentWorkspaces } from '@/app/dashboard/actions'
 
-export default async function DashboardLayout({
+export default function SettingsLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
-    const recentWorkspaces = await getRecentWorkspaces()
-
     return (
         <div className="flex h-screen w-full bg-white overflow-hidden font-display text-slate-900">
-            <Sidebar recentWorkspaces={recentWorkspaces} />
+            <Sidebar />
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
                 {children}
             </main>

@@ -3,7 +3,7 @@
  * Tools operate on the files array (sidebar data) in the browser
  */
 
-import type { FileNode } from "@/app/page";
+import type { FileNode } from "@/lib/types";
 
 export interface ToolResult {
     success: boolean;

@@ -1,118 +1,91 @@
 <div align="center">
 
 # zerodraft.so
+### The Agentic AI Editor.
 
-### Your documents. Your AI. One workspace.
+<p align="center">
+  <img src="public/images/agent_demo.gif" alt="ZeroDraft Agent Working" width="100%">
+</p>
 
-[Get Started](#quick-start) · [How It Works](#how-it-works) · [Documentation](SETUP.md)
+### "It's basically Cursor, but for docs."
 
----
+[Get Started](#quick-start) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
+---
+
 ## What is this?
 
-**zerodraft** is a document workspace with an embedded AI that can read, write, and edit your files directly.
+**ZeroDraft** is an open-source document workspace with an embedded AI agent that lives in your file system.
 
-No extensions. No plugins. No "paste your document here." 
+Most AI writing tools just chat. You copy-paste context, get a response, and paste it back. It's friction.
 
-You open a file. You ask the AI to do something with it. It does it.
+ZeroDraft works differently. The agent has **tools**. It can:
+- **Read** your entire project to understand context.
+- **Write** new files (PRDs, specs, blog posts) directly.
+- **Edit** existing documents without you lifting a finger.
 
----
+It's a local-first, privacy-focused workspace for deep work.
 
-## How It Works
+## Features
 
-The AI has four tools:
-
-| Tool | What it does |
-|------|-------------|
-| `read` | Opens and reads any file in your workspace |
-| `write` | Creates a new file with content you specify |
-| `update` | Finds and replaces text in existing files |
-| `list` | Shows all files in your workspace |
-
-That's it. Simple tools. Real actions.
-
-**Example:**
-
-```
-You: "Turn the product brief into user stories"
-
-AI: [reads product_brief.md]
-    [writes user_stories.md with 5 formatted stories]
-    
-Done. New file in your sidebar.
-```
-
----
-
-## Why This Exists
-
-Most AI writing tools work like this:
-1. Copy your document
-2. Paste into ChatGPT
-3. Get output
-4. Copy that back
-5. Paste into your doc
-6. Repeat forever
-
-We got tired of that loop.
-
-zerodraft puts the AI *inside* your file system. It reads what you're working on. It writes directly to new files. No clipboard gymnastics.
-
----
-
-## What You Get
-
-- **A file explorer** — folders, files, drag-and-drop
-- **A rich text editor** — markdown, formatting, the basics done well
-- **An AI sidebar** — type commands, get results
-- **File import** — drop in Word docs, PDFs, whatever you have
-
-Built with Next.js, Supabase, and Tiptap. Runs locally or deploy it yourself.
-
----
+- 🤖 **Agentic Workflow**: Don't just prompt. Give commands. "Read the transcripts in /Research and write a memo in /Drafts."
+- 📂 **File System Integration**: Real folders, real files. No abstract "knowledge base" silos.
+- 🔒 **Local First**: Your data stays on your machine (or your own Supabase instance). Bring your own keys.
+- ⚡ **Rich Text Editor**: A Notion-style editor built for long-form writing, not just chat bubbles.
+- 🛠️ **Open Source**: MIT Licensed. Hack it, extend it, make it yours.
 
 ## Quick Start
 
+### Prerequisites
+- Node.js 18+
+- Supabase Account (for auth/database)
+- OpenRouter API Key (for LLMs)
+
+### 1. Clone & Install
 ```bash
 git clone https://github.com/marsalanjaved1/zerodraft.so.git
-cd zerodraft.so
+cd zerodraft
 npm install
 ```
 
-Create `.env.local`:
+### 2. Environment Setup
+Copy the example env file:
+```bash
+cp .env.local.example .env.local
+```
+
+Fill in your keys in `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_key
-OPENROUTER_API_KEY=your_openrouter_key
+OPENROUTER_API_KEY=your_key
 ```
 
+### 3. Run Locally
 ```bash
 npm run dev
 ```
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-Open [localhost:3000](http://localhost:3000).
+## Project Structure
 
-> Full setup guide in [SETUP.md](SETUP.md)
+- `/src/components/editor`: The Tiptap-based rich text editor.
+- `/src/lib/agent`: The LangChain agent logic and tool definitions.
+- `/src/app/api/chat`: The Vercel AI SDK route handling streaming responses.
 
----
+## Contributing
 
-## Stack
+We love contributors! Whether it's fixing bugs, adding new agent tools, or improving the UI.
 
-Next.js 16 · TypeScript · Supabase · Tiptap · LangChain · OpenRouter
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
 
----
+## Roadmap
+
+We are building the future of AI-assisted writing. Check out [ROADMAP.md](ROADMAP.md) to see what's coming next (PDF reading, Web Search, and more).
 
 ## License
 
-MIT
-
----
-
-<div align="center">
-
-**[zerodraft.so](https://zerodraft.so)**
-
-</div>
+MIT © [Arsalan Javed](https://twitter.com/arsalanjaved)

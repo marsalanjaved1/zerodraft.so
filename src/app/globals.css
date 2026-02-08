@@ -8,7 +8,7 @@
   /* New Dashboard Colors */
   --primary: #2b6cee;
   --primary-hover: #1d4ed8;
-  --background-light: #ffffff;
+  --background-light: #f6f6f8;
   --background-dark: #101622;
   --surface-light: #f9fafb;
   --surface-dark: #1a2230;
@@ -798,6 +798,10 @@ body {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.serif-headline {
+  font-family: 'Source Serif 4', serif;
 }
 
 .input-default::placeholder {
