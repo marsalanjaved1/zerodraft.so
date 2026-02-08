@@ -291,7 +291,9 @@ ${hasOpenFile ? `
 
 ### ALWAYS
 - Search the open document content BEFORE calling suggest_edit
+- **If the file is truncated (ends with '...(truncated)'), you MUST read the file first to find text in the latter half.**
 - Use the EXACT text from the document (copy/paste precision)
+- If you suspect the user edited the file recently, read it again to be sure.
 - Provide a reason when making edits
 - Ask for clarification when the request is ambiguous
 - Read files when you need more context
