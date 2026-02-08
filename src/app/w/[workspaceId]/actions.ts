@@ -160,6 +160,52 @@ export async function renameDocument(workspaceId: string, docId: string, newTitl
 
 export async function deleteDocument(workspaceId: string, docId: string) {
     const supabase = await createClient()
+
+    // 1. Get the document first to check for storage path
+    const { data: doc, error: fetchError } = await supabase
+        .from('documents')
+        .select('content, type')
+        .eq('id', docId)
+        .single();
+
+    if (fetchError) {
+        console.error("Error fetching document for deletion:", fetchError);
+        // We continue to try to delete the record even if fetch fails, 
+        // but skipping storage cleanup logic if we can't read it.
+    } else if (doc?.content) {
+        try {
+            const contentConfig = JSON.parse(doc.content);
+            // Check for file path in metadata (works for both PDF and other files)
+            if (contentConfig.filePath) {
+                // Create admin client for storage deletion (bypass RLS if needed, or use service role)
+                // We reuse the pattern from importDocument for safety, though standard client might work if RLS allows delete
+                const { createClient: createAdminClient } = require('@supabase/supabase-js');
+                const adminSupabase = createAdminClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                    {
+                        auth: {
+                            autoRefreshToken: false,
+                            persistSession: false
+                        }
+                    }
+                );
+
+                const { error: storageError } = await adminSupabase.storage
+                    .from('workspace-files')
+                    .remove([contentConfig.filePath]);
+
+                if (storageError) {
+                    console.error("Failed to delete file from storage:", storageError);
+                } else {
+                    console.log("Deleted file from storage:", contentConfig.filePath);
+                }
+            }
+        } catch (e) {
+            console.warn("Could not parse document content for storage cleanup:", e);
+        }
+    }
+
     const { error } = await supabase
         .from('documents')
         .delete()
