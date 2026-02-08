@@ -346,6 +346,7 @@ export async function POST(req: Request) {
 
     const llm = new ChatOpenAI({
         modelName: selectedModel,
+        maxTokens: 4096,
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
             apiKey: process.env.OPENROUTER_API_KEY,

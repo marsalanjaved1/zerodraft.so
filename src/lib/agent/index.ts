@@ -6,6 +6,7 @@ import { allTools } from "./tools";
 export function createLLM(model: string = "anthropic/claude-haiku-4.5") {
     const llm = new ChatOpenAI({
         modelName: model,
+        maxTokens: 4096,
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
             apiKey: process.env.OPENROUTER_API_KEY,
