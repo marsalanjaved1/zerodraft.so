@@ -44,9 +44,11 @@ export default function InlineDiffView({ node, editor, getPos }: InlineDiffViewP
 
     return (
         <NodeViewWrapper as="span" className="inline-diff-wrapper mx-1 align-baseline inline-flex items-center">
-            <span className="diff-removed mr-1 rounded bg-red-100 px-1 py-0.5 text-red-800 line-through decoration-red-500/50 decoration-2">
-                {original}
-            </span>
+            {original && (
+                <span className="diff-removed mr-1 rounded bg-red-100 px-1 py-0.5 text-red-800 line-through decoration-red-500/50 decoration-2">
+                    {original}
+                </span>
+            )}
             <span
                 className="diff-added rounded bg-green-100 px-1 py-0.5 text-green-800"
                 dangerouslySetInnerHTML={{ __html: suggested }}

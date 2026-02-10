@@ -17,6 +17,7 @@ import type { FileNode } from "@/lib/types";
 import { defaultExtensions } from "./extensions";
 import { slashCommand, suggestionItems } from "./slash-command";
 import { EditorBubbleMenu } from "./bubble-menu";
+import { EditorToolbar } from "./editor-toolbar";
 import { SearchBar } from "@/components/SearchBar";
 import { useEditorSearch } from "@/lib/hooks/use-editor-search";
 import { useGhostText } from "@/lib/hooks/use-ghost-text";
@@ -34,6 +35,7 @@ export interface EditorActions {
     getWordCount: () => { words: number; characters: number };
     insertText: (text: string) => void;
     applyInlineChange: (original: string, suggested: string, changeId: string) => boolean | string;
+    applyInlineInsertion?: (insertionPoint: string, textToInsert: string) => boolean | string;
 }
 
 interface NovelEditorProps {
@@ -61,6 +63,7 @@ export function NovelEditor({
     const [openNode, setOpenNode] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [isFullWidth, setIsFullWidth] = useState(false);
     const editorRef = useRef<HTMLDivElement>(null);
 
     // Ghost text hook
@@ -114,7 +117,7 @@ export function NovelEditor({
                 if (extension === 'txt' || extension === 'md' || extension === 'markdown') {
                     fileContent = await file.text();
                     if (extension === 'md' || extension === 'markdown') {
-                        fileContent = markdownToHtml(fileContent);
+                        fileContent = (editorInstance?.storage as any)?.markdown?.parser.parse(fileContent) || fileContent;
                     }
                 } else if (extension === 'json') {
                     const jsonText = await file.text();
@@ -146,56 +149,7 @@ export function NovelEditor({
         }
     }, [editorInstance, onFileImport]);
 
-    // Basic Markdown to HTML converter
-    const markdownToHtml = (md: string): string => {
-        if (!md) return '';
 
-        // First, handle code blocks to avoid messing with their content
-        const codeBlocks: string[] = [];
-        let html = md.replace(/```([\s\S]*?)```/g, (match, code) => {
-            codeBlocks.push(code);
-            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
-        });
-
-        // Handle inline code
-        const inlineCode: string[] = [];
-        html = html.replace(/`([^`]+)`/g, (match, code) => {
-            inlineCode.push(code);
-            return `__INLINE_CODE_${inlineCode.length - 1}__`;
-        });
-
-        html = html
-            // Headers
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            // Bold
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/__([^_]+)__/g, '<strong>$1</strong>')
-            // Italic
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/_([^_]+)_/g, '<em>$1</em>')
-            // Links
-            .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-            // Lists
-            .replace(/^\- (.*$)/gm, '<li>$1</li>')
-            .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
-            // Restore code blocks
-            .replace(/__CODE_BLOCK_(\d+)__/g, (match, index) => `<pre><code>${codeBlocks[parseInt(index)]}</code></pre>`)
-            // Restore inline code
-            .replace(/__INLINE_CODE_(\d+)__/g, (match, index) => `<code>${inlineCode[parseInt(index)]}</code>`);
-
-        // Only wrap in paragraphs if there are double newlines and it's not already wrapped
-        if (html.includes('\n\n')) {
-            html = html.replace(/\n\n/g, '</p><p>');
-            // Wrap the whole thing in p if not starting with a block tag
-            if (!/^<(h[1-6]|pre|ul|ol|li)/.test(html)) {
-                html = `<p>${html}</p>`;
-            }
-        }
-
-        return html;
-    };
 
     // Apply inline tracked change to editor using styled markers
     // Uses fuzzy matching to handle whitespace/formatting differences
@@ -222,6 +176,28 @@ export function NovelEditor({
 
         // Strip HTML tags if original looks like HTML
         let searchOriginal = original;
+
+        // Strip Markdown syntax to match plain text in editor
+        // Remove Headers
+        searchOriginal = searchOriginal.replace(/^#{1,6}\s+/gm, '');
+        // Remove Blockquotes
+        searchOriginal = searchOriginal.replace(/^>\s+/gm, '');
+        // Remove Checkboxes
+        searchOriginal = searchOriginal.replace(/^[-*]\s+\[[ xX]?\]\s+/gm, '');
+        // Remove List bullets
+        searchOriginal = searchOriginal.replace(/^[-*]\s+/gm, '');
+        // Remove Numbered lists
+        searchOriginal = searchOriginal.replace(/^\d+\.\s+/gm, '');
+        // Remove Links [text](url) -> text
+        searchOriginal = searchOriginal.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        // Remove Bold/Italic (**text**, *text*)
+        searchOriginal = searchOriginal.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
+        // Remove Inline code `text`
+        searchOriginal = searchOriginal.replace(/`([^`]+)`/g, '$1');
+
+        // Normalization: Collapse whitespace to single spaces for better matching
+        searchOriginal = searchOriginal.replace(/\s+/g, ' ').trim();
+
         if (original.trim().startsWith('<') && original.includes('>')) {
             try {
                 const tempDiv = document.createElement('div');
@@ -279,7 +255,7 @@ export function NovelEditor({
         console.log("applyInlineChange: Found text at position", foundPos, "to", foundEndPos);
 
         // Convert suggested text from Markdown to HTML for rendering
-        const suggestedHtml = markdownToHtml(suggested);
+        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(suggested) || suggested;
         console.log("applyInlineChange: Converted suggested text to HTML:", suggestedHtml);
 
         // Replace the original text with the inlineDiff node
@@ -301,6 +277,138 @@ export function NovelEditor({
             return true;
         } catch (error: any) {
             return `Edit failed: ${error.message || 'Unknown error applying change'}`;
+        }
+    }, [editorInstance]);
+
+    // Apply inline insertion (green text only)
+    const applyInlineInsertion = useCallback((insertionPoint: string, textToInsert: string): boolean | string => {
+        if (!editorInstance) {
+            return "RETRY: No document is open.";
+        }
+
+        // Get complete document text for fuzzy matching
+        const { doc } = editorInstance.state;
+        let fullText = '';
+        const nodePositions: { start: number; end: number; textStart: number }[] = [];
+
+        doc.descendants((node, pos) => {
+            if (node.isText && node.text) {
+                nodePositions.push({
+                    start: pos,
+                    end: pos + node.text.length,
+                    textStart: fullText.length
+                });
+                fullText += node.text;
+            }
+        });
+
+        // Strip HTML tags/Markdown from insertionPoint to match plain text
+        let searchOriginal = insertionPoint;
+
+        // Use same stripping logic as applyInlineChange
+        searchOriginal = searchOriginal.replace(/^#{1,6}\s+/gm, '');
+        searchOriginal = searchOriginal.replace(/^>\s+/gm, '');
+        searchOriginal = searchOriginal.replace(/^[-*]\s+\[[ xX]?\]\s+/gm, '');
+        searchOriginal = searchOriginal.replace(/^[-*]\s+/gm, '');
+        searchOriginal = searchOriginal.replace(/^\d+\.\s+/gm, '');
+        searchOriginal = searchOriginal.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        searchOriginal = searchOriginal.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
+        searchOriginal = searchOriginal.replace(/`([^`]+)`/g, '$1');
+        searchOriginal = searchOriginal.replace(/\s+/g, ' ').trim();
+
+        if (insertionPoint.trim().startsWith('<') && insertionPoint.includes('>')) {
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = insertionPoint;
+                searchOriginal = tempDiv.textContent || insertionPoint;
+            } catch (e) { }
+        }
+
+        // Use fuzzy matching to find the insertion point
+        const match = findBestMatch(fullText, searchOriginal);
+
+        if (!match.found) {
+            return `RETRY: Could not find the insertion point text "${insertionPoint.slice(0, 50)}...". Please assume the document content might have minor differences and try a smaller, more unique snippet to locate the insertion point.`;
+        }
+
+        // Map text position back to document position
+        let foundEndPos: number | null = null;
+
+        for (const nodePos of nodePositions) {
+            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
+            if (match.startIndex >= nodePos.textStart && match.startIndex < nodeTextEnd) {
+                // We want the END of the match
+                const offsetInNode = (match.startIndex + match.matchedText.length) - nodePos.textStart;
+                // Check if match spans multiple nodes?
+                // findBestMatch returns flattened index.
+                // Simplified lookup for end position:
+                // Find node containing the END of the match
+                // Actually loop again/continue?
+            }
+        }
+
+        // Robust position mapping
+        let currentPos = 0;
+        let matchEndInDoc = -1;
+
+        // Re-traverse to find exact end position
+        // This is slightly inefficient but safe
+        // Actually, let's use the nodePositions mapping cleanly
+        const matchEndIndex = match.startIndex + match.matchedText.length;
+
+        for (const nodePos of nodePositions) {
+            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
+            if (matchEndIndex > nodePos.textStart && matchEndIndex <= nodeTextEnd) {
+                const offset = matchEndIndex - nodePos.textStart;
+                foundEndPos = nodePos.start + offset;
+                break;
+            }
+        }
+
+        // If matchEndIndex is exactly at the end of a node, foundEndPos is correct.
+
+        if (foundEndPos === null) {
+            // Fallback: match likely end of document or miscalculated
+            // If match is at very end
+            if (matchEndIndex >= fullText.length) {
+                const lastNode = nodePositions[nodePositions.length - 1];
+                foundEndPos = lastNode.end;
+            } else {
+                return "RETRY: Could not map insertion position.";
+            }
+        }
+
+        // Convert suggested text
+        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(textToInsert) || textToInsert;
+
+        try {
+            // Insert AFTER the found text. 
+            // We usually want to insert a space or newline? 
+            // The tool is "suggest_edit" style, so we insert the InlineDiff node.
+
+            // If we are inserting a Block (like a list item), we might need a newline char separating it?
+            // "Wake up" -> foundEndPos.
+            // Insert "\n" + InlineDiff?
+            // If I insert InlineDiff directly, it appends to the text node "Wake up[DIFF]".
+
+            // Let's blindly insert at foundEndPos. The `suggestedHtml` usually contains the formatting.
+
+            editorInstance
+                .chain()
+                .focus()
+                .insertContentAt(foundEndPos, {
+                    type: "inlineDiff",
+                    attrs: {
+                        original: "", // Empty original = insertion
+                        suggested: suggestedHtml,
+                        changeId: `insert-${Date.now()}`,
+                    }
+                })
+                .run();
+
+            return true;
+        } catch (error: any) {
+            return `Insertion failed: ${error.message}`;
         }
     }, [editorInstance]);
 
@@ -357,14 +465,17 @@ export function NovelEditor({
                     };
                 },
                 insertText: (text: string) => {
-                    const html = markdownToHtml(text);
+                    const html = (editorInstance.storage as any).markdown?.parser.parse(text) || text;
                     editorInstance.chain().focus().insertContent(html).run();
                 },
                 applyInlineChange,
+                applyInlineInsertion,
             };
             onEditorReady(actions);
         }
     }, [editorInstance, onEditorReady]);
+
+    const lastFileIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (editorInstance && file) {
@@ -375,14 +486,25 @@ export function NovelEditor({
             if (extension === 'md' || extension === 'markdown') {
                 // Check if it already looks like HTML (starts with <) to avoid double conversion
                 if (content && !content.trim().startsWith('<')) {
-                    contentToSet = markdownToHtml(content);
+                    contentToSet = (editorInstance.storage as any).markdown?.parser.parse(content) || content;
                 }
             }
 
-            // Only update if content is different to avoid cursor jumping
-            if (contentToSet !== editorInstance.getHTML()) {
-                editorInstance.commands.setContent(contentToSet);
+            const isFileChanged = file.id !== lastFileIdRef.current;
+
+            // Only update from props if:
+            // 1. The file has changed (switched documents)
+            // 2. The editor is NOT focused (external update while user isn't typing)
+            // 3. The content is actually different (avoid no-op updates)
+            if (isFileChanged || !editorInstance.isFocused) {
+                if (contentToSet !== editorInstance.getHTML()) {
+                    // Save cursor position if we must update while focused (edge case for verify updates)
+                    // But generally we rely on isFocused check.
+                    editorInstance.commands.setContent(contentToSet);
+                }
             }
+
+            lastFileIdRef.current = file.id;
         }
     }, [content, editorInstance, file]);
 
@@ -432,13 +554,26 @@ export function NovelEditor({
                 </div>
             )}
 
+            {/* Width Toggle & Editor Controls */}
+            <div className="absolute top-4 right-4 z-40 flex items-center gap-2 no-print">
+                <button
+                    onClick={() => setIsFullWidth(!isFullWidth)}
+                    className="p-2 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-md transition-colors"
+                    title={isFullWidth ? "Switch to focused width" : "Switch to full width"}
+                >
+                    {isFullWidth ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                </button>
+            </div>
+
             {/* Novel Editor */}
-            <div className="flex-1 overflow-y-auto relative">
+            <div className="flex-1 overflow-y-auto relative bg-white">
                 <EditorRoot>
+                    <EditorToolbar editor={editorInstance} />
                     <EditorContent
                         immediatelyRender={false}
                         extensions={extensions}
-                        className="novel-editor px-8 py-8 md:px-16 lg:px-24"
+                        className={`novel-editor px-8 py-8 md:px-16 lg:px-24 transition-all duration-300 ease-in-out ${isFullWidth ? "max-w-none w-full" : "max-w-3xl mx-auto"
+                            }`}
                         editorProps={{
                             handleDOMEvents: {
                                 keydown: (_view, event) => {
@@ -461,13 +596,13 @@ export function NovelEditor({
                                 },
                             },
                             attributes: {
-                                class:
-                                    "prose prose-lg max-w-3xl mx-auto focus:outline-none min-h-[500px] font-serif",
+                                class: `prose prose-lg focus:outline-none min-h-[500px] font-serif ${isFullWidth ? "max-w-none" : "max-w-3xl mx-auto"}`,
                             },
                         }}
                         onUpdate={({ editor }) => {
-                            const html = editor.getHTML();
-                            onContentChange(html);
+                            // Sync Markdown content for the agent/backend
+                            const markdown = (editor.storage as any).markdown?.getMarkdown() || editor.getText();
+                            onContentChange(markdown);
 
                             // Trigger ghost text suggestion after a pause
                             if (enableGhostText) {
@@ -481,6 +616,9 @@ export function NovelEditor({
                             if (content) {
                                 editor.commands.setContent(content);
                             }
+                            // Force initial sync to ensure file on disk is Markdown (converts legacy HTML)
+                            const markdown = (editor.storage as any).markdown?.getMarkdown() || editor.getText();
+                            onContentChange(markdown);
                         }}
                     >
                         {/* Bubble Menu */}

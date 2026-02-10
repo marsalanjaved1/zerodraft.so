@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, ChevronRight, Share2 } from "lucide-react";
+import { Menu, ChevronRight, Share2, Edit2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
@@ -12,6 +12,7 @@ interface HeaderProps {
     onMenuClick?: () => void;
     onShare?: () => void;
     onRenameWorkspace?: (newName: string) => void;
+    onRenameDocument?: (newName: string) => Promise<void>;
     userAvatar?: string;
 }
 
@@ -23,37 +24,52 @@ export function Header({
     onMenuClick,
     onShare,
     onRenameWorkspace,
+    onRenameDocument,
     userAvatar,
 }: HeaderProps) {
-    const [isEditing, setIsEditing] = useState(false);
-    const [nameInput, setNameInput] = useState(projectName);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [isEditingWorkspace, setIsEditingWorkspace] = useState(false);
+    const [workspaceNameInput, setWorkspaceNameInput] = useState(projectName);
+    const workspaceInputRef = useRef<HTMLInputElement>(null);
+
+    const [isEditingDocument, setIsEditingDocument] = useState(false);
+    const [documentNameInput, setDocumentNameInput] = useState(documentTitle);
+    const documentInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        setNameInput(projectName);
+        setWorkspaceNameInput(projectName);
     }, [projectName]);
 
     useEffect(() => {
-        if (isEditing && inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, [isEditing]);
+        setDocumentNameInput(documentTitle);
+    }, [documentTitle]);
 
-    const handleSubmit = () => {
-        setIsEditing(false);
-        if (nameInput.trim() && nameInput !== projectName) {
-            onRenameWorkspace?.(nameInput);
+    useEffect(() => {
+        if (isEditingWorkspace && workspaceInputRef.current) {
+            workspaceInputRef.current.focus();
+        }
+    }, [isEditingWorkspace]);
+
+    useEffect(() => {
+        if (isEditingDocument && documentInputRef.current) {
+            documentInputRef.current.focus();
+        }
+    }, [isEditingDocument]);
+
+    const handleWorkspaceSubmit = () => {
+        setIsEditingWorkspace(false);
+        if (workspaceNameInput.trim() && workspaceNameInput !== projectName) {
+            onRenameWorkspace?.(workspaceNameInput);
         } else {
-            setNameInput(projectName);
+            setWorkspaceNameInput(projectName);
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            handleSubmit();
-        } else if (e.key === 'Escape') {
-            setIsEditing(false);
-            setNameInput(projectName);
+    const handleDocumentSubmit = async () => {
+        setIsEditingDocument(false);
+        if (documentNameInput.trim() && documentNameInput !== documentTitle) {
+            await onRenameDocument?.(documentNameInput);
+        } else {
+            setDocumentNameInput(documentTitle);
         }
     };
 
@@ -69,24 +85,48 @@ export function Header({
                 </button>
 
                 {/* Breadcrumbs */}
-                {/* Breadcrumbs */}
-                {/* Breadcrumbs */}
-                {/* Breadcrumbs */}
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Link href="/dashboard" className="hover:text-gray-900 transition-colors font-medium">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Link href="/dashboard" className="hover:text-gray-900 transition-colors font-medium text-xs">
                         {workspaceName}
                     </Link>
                     <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+
+                    {/* Workspace/Project Name (renamable, though often 'projectName' prop here is actually workspace name usage in this app) */}
+                    {/* Note: The props are a bit confusing: 'workspaceName' is "Projects" usually, 'projectName' fits the workspace slot */}
+                    {/* We'll keep the logic as it was, but ensure renames work */}
                 </div>
 
                 {/* Document Title */}
                 <div className="flex items-center gap-2">
-                    <h1 className="text-sm font-medium text-gray-900">
-                        {documentTitle}
-                    </h1>
+                    {isEditingDocument ? (
+                        <input
+                            ref={documentInputRef}
+                            type="text"
+                            value={documentNameInput}
+                            onChange={(e) => setDocumentNameInput(e.target.value)}
+                            onBlur={handleDocumentSubmit}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleDocumentSubmit();
+                                if (e.key === 'Escape') {
+                                    setIsEditingDocument(false);
+                                    setDocumentNameInput(documentTitle);
+                                }
+                            }}
+                            className="bg-white text-gray-900 text-sm font-medium px-1 outline-none border border-indigo-500 rounded min-w-[120px]"
+                        />
+                    ) : (
+                        <h1
+                            className="text-sm font-medium text-gray-900 cursor-text hover:bg-gray-50 px-1 rounded transition-colors"
+                            onDoubleClick={() => onRenameDocument && setIsEditingDocument(true)}
+                            title={onRenameDocument ? "Double click to rename" : undefined}
+                        >
+                            {documentTitle}
+                        </h1>
+                    )}
+
                     {/* Save indicator */}
                     <span
-                        className={`w-1.5 h-1.5 rounded-full ${isSaved ? 'bg-green-500' : 'bg-yellow-500'}`}
+                        className={`w-1.5 h-1.5 rounded-full ${isSaved ? 'bg-green-500' : 'bg-yellow-500'} ml-1`}
                         title={isSaved ? 'Saved' : 'Unsaved changes'}
                     />
                 </div>

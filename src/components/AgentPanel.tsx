@@ -63,6 +63,7 @@ interface AgentPanelProps {
     editorContent?: string;
     chatSessionId?: string;
     onApplyDiff?: (diff: { removed: string; added: string; position: number }) => void;
+    onSuggestInsertion?: (change: { insertionPoint: string; textToInsert: string; reason?: string }) => string;
     onRefreshFiles?: () => void;
     onOpenFile?: (fileId: string) => void;
     onClose?: () => void;
@@ -105,7 +106,7 @@ const MODELS = [
 ];
 
 // Writing tool names (handled client-side)
-const WRITING_TOOLS = ["insert_text", "replace_selection", "suggest_edit", "add_comment", "get_selection", "search_document", "open_file_in_editor"];
+const WRITING_TOOLS = ["insert_text", "replace_selection", "suggest_edit", "suggest_insertion", "get_selection", "search_document", "open_file_in_editor"];
 
 function isWritingTool(toolName: string): boolean {
     return WRITING_TOOLS.includes(toolName);
@@ -118,6 +119,7 @@ export function AgentPanel({
     onInsertText,
     onReplaceSelection,
     onSuggestEdit,
+    onSuggestInsertion,
     workspaceId,
     selectedFile,
     editorContent,
@@ -280,9 +282,21 @@ export function AgentPanel({
                 }
                 return "Suggest edit action failed - missing original_text or suggested_text.";
             }
-            case "add_comment": {
-                return `Comment added on: "${args.target_text?.slice(0, 30)}...": ${args.comment}`;
+
+            case "suggest_insertion": {
+                if (args.insertion_point && args.text_to_insert) {
+                    if (onSuggestInsertion) {
+                        return onSuggestInsertion({
+                            insertionPoint: args.insertion_point,
+                            textToInsert: args.text_to_insert,
+                            reason: args.reason
+                        });
+                    }
+                    return "Suggest insertion action queued - no handler available.";
+                }
+                return "Suggest insertion action failed - missing args.";
             }
+
             case "get_selection": {
                 return "No text currently selected.";
             }
@@ -319,7 +333,7 @@ export function AgentPanel({
             default:
                 return `Unknown writing tool: ${toolName}`;
         }
-    }, [onInsertText, onReplaceSelection, onSuggestEdit, selectedFile, currentFiles, onOpenFile]);
+    }, [onInsertText, onReplaceSelection, onSuggestEdit, onSuggestInsertion, selectedFile, currentFiles, onOpenFile]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -511,16 +525,30 @@ export function AgentPanel({
                             } else if (toolCall.name.startsWith("fs_")) {
                                 // Check if reading current file to provide live content
                                 let overrideContent: string | undefined;
-                                if (toolCall.name === "fs_read_file" && selectedFile && args.path === selectedFile.path) {
+                                const isCurrentFile = selectedFile && (
+                                    args.path === selectedFile.path ||
+                                    args.path === selectedFile.name ||
+                                    args.path.endsWith(`/${selectedFile.name}`)
+                                );
+
+                                if (toolCall.name === "fs_read_file" && isCurrentFile) {
+                                    console.log("AgentPanel: Intercepting read for active file", selectedFile.name);
                                     overrideContent = editorContent;
+                                }
+
+                                // 🛡️ GUARDRAIL: Prevent direct updates to OPEN files
+                                if (toolCall.name === "fs_update_file" && selectedFile && (args.path === selectedFile.path || args.path === selectedFile.name)) {
+                                    // REJECT the tool call, forcing the agent to self-correct
+                                    updateToolStatus("error", "Error: This file is currently open in the editor. You must use 'suggest_edit' to propose changes to the active user session.");
+                                    continue; // Skip execution
                                 }
 
                                 // Execute Server-Side File System Tool
                                 const result = await executeFileSystemTool(workspaceId, toolCall.name, args, overrideContent);
                                 updateToolStatus("completed", result);
 
-                                // Refresh sidebar after file creation/write operations
-                                if ((toolCall.name === "fs_write_file" || toolCall.name === "fs_create_file") &&
+                                // Refresh sidebar after file creation/write/update operations
+                                if ((toolCall.name === "fs_write_file" || toolCall.name === "fs_update_file") &&
                                     result && !result.includes("Error")) {
                                     onRefreshFiles?.();
                                 }

@@ -25,7 +25,7 @@ interface FileExplorerProps {
     files: FileNode[];
     selectedFile: FileNode | null;
     onFileSelect: (file: FileNode) => void;
-    onCreateNode?: (type: 'file' | 'folder') => void;
+    onCreateNode?: (type: 'file' | 'folder', parentId?: string) => void;
     onUpload?: (file: File) => void;
     onRename?: (id: string, newName: string) => Promise<void>;
     onDelete?: (id: string) => Promise<void>;
@@ -51,6 +51,7 @@ function FileIcon({ file, isOpen }: { file: FileNode; isOpen?: boolean }) {
 }
 
 // File tree item component
+// File tree item component
 interface FileTreeItemProps {
     file: FileNode;
     selectedFile: FileNode | null;
@@ -61,6 +62,8 @@ interface FileTreeItemProps {
     onCommitRename: (id: string, newName: string) => void;
     onCancelRename: () => void;
     onDeleteRequest: (file: FileNode) => void;
+    allFiles: FileNode[]; // Needed for duplicate check
+    onCreateNode?: (type: 'file' | 'folder', parentId?: string) => void;
 }
 
 function FileTreeItem({
@@ -72,12 +75,16 @@ function FileTreeItem({
     onStartRename,
     onCommitRename,
     onCancelRename,
-    onDeleteRequest
+    onDeleteRequest,
+    allFiles,
+    onCreateNode
 }: FileTreeItemProps) {
     const [isOpen, setIsOpen] = useState(false);
     const isSelected = selectedFile?.id === file.id;
     const hasChildren = file.type === "folder" && file.children && file.children.length > 0;
     const isRenaming = renamingId === file.id;
+    const [fileNameInput, setFileNameInput] = useState(file.name);
+    const [error, setError] = useState<string | null>(null);
 
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: file.id,
@@ -93,28 +100,60 @@ function FileTreeItem({
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: 999,
-        opacity: isDragging ? 0.5 : 1
+        opacity: isDragging ? 0.6 : 1,
+        scale: isDragging ? 1.05 : 1,
     } : undefined;
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (file.type === "folder") {
+        if (file.type === "folder" && !isRenaming) {
             setIsOpen(!isOpen);
         }
         onFileSelect(file);
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onStartRename(file.id);
+    };
+
     const inputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
-        if (isRenaming && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
+        if (isRenaming) {
+            setFileNameInput(file.name);
+            setError(null);
+            if (inputRef.current) {
+                inputRef.current.focus();
+                inputRef.current.select();
+            }
         }
-    }, [isRenaming]);
+    }, [isRenaming, file.name]);
+
+    const validateAndCommit = () => {
+        const newName = fileNameInput.trim();
+        if (!newName || newName === file.name) {
+            onCancelRename();
+            return;
+        }
+
+        // Check for duplicates in same folder
+        // For simplicity in this recursive structure, we look at the parent's children if we knew current parent
+        // But here we might need to rely on the parent executing the check, OR we do a quick check if 'allFiles' represents the current level.
+        // Actually, 'allFiles' passed here is likely the whole tree or the current list being mapped. 
+        // Let's assume 'allFiles' is the list of siblings at this level.
+        const isDuplicate = allFiles.some(f => f.id !== file.id && f.name.toLowerCase() === newName.toLowerCase());
+
+        if (isDuplicate) {
+            setError("Name already exists");
+            return;
+        }
+
+        onCommitRename(file.id, newName);
+    };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
-            onCommitRename(file.id, inputRef.current?.value || file.name);
+            validateAndCommit();
         } else if (e.key === "Escape") {
             onCancelRename();
         }
@@ -130,14 +169,16 @@ function FileTreeItem({
             {...listeners}
             {...attributes}
             className={`
-                group flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded-md mx-1.5 transition-all
+                group flex cursor-pointer items-center gap-2 px-2 py-1.5 rounded-md mx-1.5 transition-all select-none
                 ${isSelected
                     ? "bg-white shadow-subtle border border-gray-200/60 text-gray-900 font-medium"
                     : "text-gray-500 hover:bg-white hover:shadow-subtle"
                 }
-                ${isOver && file.type === 'folder' && !isDragging ? "ring-2 ring-indigo-500 ring-inset" : ""}
+                ${isOver && file.type === 'folder' && !isDragging ? "ring-2 ring-indigo-500 ring-inset bg-indigo-50" : ""}
+                ${isDragging ? "shadow-lg ring-1 ring-gray-200 rotate-2" : ""}
             `}
             onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
         >
             {/* Indentation */}
             <div style={{ paddingLeft: `${depth * 12}px` }} />
@@ -151,14 +192,25 @@ function FileTreeItem({
             <FileIcon file={file} isOpen={isOpen} />
 
             {isRenaming ? (
-                <input
-                    ref={inputRef}
-                    defaultValue={file.name}
-                    className="bg-white text-gray-900 text-[13px] px-1 outline-none border border-indigo-500 rounded flex-1 min-w-0"
-                    onKeyDown={handleKeyDown}
-                    onClick={(e) => e.stopPropagation()}
-                    onBlur={() => onCommitRename(file.id, inputRef.current?.value || file.name)}
-                />
+                <div className="flex-1 min-w-0 relative">
+                    <input
+                        ref={inputRef}
+                        value={fileNameInput}
+                        onChange={(e) => {
+                            setFileNameInput(e.target.value);
+                            setError(null);
+                        }}
+                        className={`bg-white text-gray-900 text-[13px] px-1 outline-none border rounded w-full ${error ? "border-red-500" : "border-indigo-500"}`}
+                        onKeyDown={handleKeyDown}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={validateAndCommit}
+                    />
+                    {error && (
+                        <div className="absolute top-full left-0 mt-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg z-[60] whitespace-nowrap">
+                            {error}
+                        </div>
+                    )}
+                </div>
             ) : (
                 <span className="text-[13px] truncate flex-1">{file.name}</span>
             )}
@@ -170,6 +222,31 @@ function FileTreeItem({
             <ContextMenu.Root>
                 <ContextMenu.Trigger>{content}</ContextMenu.Trigger>
                 <ContextMenu.Content className="min-w-[140px] bg-white rounded-lg border border-gray-200 p-1 shadow-float z-50">
+                    {file.type === 'folder' && (
+                        <>
+                            <ContextMenu.Item
+                                className="text-[13px] text-gray-700 px-2 py-1.5 rounded cursor-default hover:bg-gray-50 outline-none flex items-center gap-2"
+                                onClick={() => {
+                                    setIsOpen(true);
+                                    onCreateNode?.('file', file.id);
+                                }}
+                            >
+                                <FilePlus className="w-3.5 h-3.5" />
+                                New File
+                            </ContextMenu.Item>
+                            <ContextMenu.Item
+                                className="text-[13px] text-gray-700 px-2 py-1.5 rounded cursor-default hover:bg-gray-50 outline-none flex items-center gap-2"
+                                onClick={() => {
+                                    setIsOpen(true);
+                                    onCreateNode?.('folder', file.id);
+                                }}
+                            >
+                                <FolderPlus className="w-3.5 h-3.5" />
+                                New Folder
+                            </ContextMenu.Item>
+                            <ContextMenu.Separator className="h-[1px] bg-gray-100 my-1" />
+                        </>
+                    )}
                     <ContextMenu.Item
                         className="text-[13px] text-gray-700 px-2 py-1.5 rounded cursor-default hover:bg-gray-50 outline-none flex items-center gap-2"
                         onClick={() => onStartRename(file.id)}
@@ -201,6 +278,8 @@ function FileTreeItem({
                             onCommitRename={onCommitRename}
                             onCancelRename={onCancelRename}
                             onDeleteRequest={onDeleteRequest}
+                            allFiles={file.children!}
+                            onCreateNode={onCreateNode}
                         />
                     ))}
                 </div>
@@ -285,15 +364,17 @@ export function FileExplorer({
     const documents = filteredFiles.filter(f => f.type === 'file');
     const folders = filteredFiles.filter(f => f.type === 'folder');
 
+    const activeDragItem = activeDragId ? files.find(f => f.id === activeDragId) || files.flatMap(f => f.children || []).find(f => f.id === activeDragId) : null;
+
     return (
         <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col flex-none hidden md:flex">
             {/* Workspace Switcher */}
             <div className="p-3 border-b border-gray-100">
-                <button className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-white transition-all shadow-none hover:shadow-subtle text-sm font-medium text-gray-700">
-                    <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 bg-gray-200 rounded flex items-center justify-center text-gray-600 text-[10px] font-bold">
+                <div className="flex items-center justify-between mb-2">
+                    <button className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white transition-all shadow-none hover:shadow-subtle text-sm font-medium text-gray-700 max-w-[160px]">
+                        <div className="w-5 h-5 bg-gray-200 rounded flex items-center justify-center text-gray-600 text-[10px] font-bold flex-shrink-0">
                             {workspaceName.charAt(0)}
-                        </span>
+                        </div>
                         {isEditingWorkspace ? (
                             <input
                                 autoFocus
@@ -309,20 +390,36 @@ export function FileExplorer({
                                     }
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="bg-white text-gray-900 text-sm px-1 py-0 outline-none border border-indigo-500 rounded min-w-[100px]"
+                                className="bg-white text-gray-900 text-sm px-1 py-0 outline-none border border-indigo-500 rounded w-full min-w-0"
                             />
                         ) : (
                             <span
                                 onDoubleClick={() => onRenameWorkspace && setIsEditingWorkspace(true)}
-                                className={onRenameWorkspace ? "cursor-text truncate max-w-[140px]" : "truncate max-w-[140px]"}
+                                className={onRenameWorkspace ? "cursor-text truncate" : "truncate"}
                                 title={onRenameWorkspace ? "Double click to rename" : undefined}
                             >
                                 {workspaceName}
                             </span>
                         )}
+                        <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    </button>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => onCreateNode?.('file')}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-md transition-all"
+                            title="New File"
+                        >
+                            <FilePlus className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => onCreateNode?.('folder')}
+                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-white rounded-md transition-all"
+                            title="New Folder"
+                        >
+                            <FolderPlus className="w-4 h-4" />
+                        </button>
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </button>
+                </div>
             </div>
 
             {/* Search */}
@@ -341,82 +438,52 @@ export function FileExplorer({
 
             {/* File Tree */}
             <nav className="flex-1 overflow-y-auto px-1 py-2 space-y-6">
-                {/* Documents Section */}
-                <div>
-                    <div className="px-3 mb-1.5 flex items-center justify-between group">
-                        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                            Documents
-                        </span>
-                        <div className="flex items-center gap-1">
-                            {/* Hidden file input */}
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".pdf,.docx,.doc,.txt,.md"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                            />
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-gray-400 hover:text-gray-700 transition-opacity"
-                                title="Upload file"
-                            >
-                                <UploadCloud className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                                onClick={() => onCreateNode?.('file')}
-                                className="text-gray-400 hover:text-gray-700 transition-opacity"
-                                title="New document"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    </div>
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                    >
-                        {documents.map((file) => (
-                            <FileTreeItem
-                                key={file.id}
-                                file={file}
-                                selectedFile={selectedFile}
-                                onFileSelect={onFileSelect}
-                                renamingId={renamingId}
-                                onStartRename={handleStartRename}
-                                onCommitRename={handleCommitRename}
-                                onCancelRename={handleCancelRename}
-                                onDeleteRequest={setDeleteTarget}
-                            />
-                        ))}
-                        <DragOverlay>
-                            {activeDragId ? (
-                                <div className="px-2 py-1 bg-white text-gray-900 text-[13px] rounded shadow-float border border-gray-200 flex items-center gap-2">
-                                    <FileText className="w-4 h-4" />
-                                    <span>Moving...</span>
-                                </div>
-                            ) : null}
-                        </DragOverlay>
-                    </DndContext>
-                </div>
-
-                {/* Folders/Research Notes Section */}
-                {folders.length > 0 && (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                >
+                    {/* Unified Files Section */}
                     <div>
                         <div className="px-3 mb-1.5 flex items-center justify-between group">
                             <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                                Research Notes
+                                Files
                             </span>
-                            <button
-                                onClick={() => onCreateNode?.('folder')}
-                                className="text-gray-400 hover:text-gray-700 transition-opacity"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                {/* Hidden file input */}
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf,.docx,.doc,.txt,.md"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                />
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-gray-400 hover:text-gray-700 transition-opacity"
+                                    title="Upload file"
+                                >
+                                    <UploadCloud className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => onCreateNode?.('folder')}
+                                    className="text-gray-400 hover:text-gray-700 transition-opacity"
+                                    title="New Folder"
+                                >
+                                    <FolderPlus className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => onCreateNode?.('file')}
+                                    className="text-gray-400 hover:text-gray-700 transition-opacity"
+                                    title="New File"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
-                        {folders.map((file) => (
+
+                        {filteredFiles.map((file) => (
                             <FileTreeItem
                                 key={file.id}
                                 file={file}
@@ -427,10 +494,21 @@ export function FileExplorer({
                                 onCommitRename={handleCommitRename}
                                 onCancelRename={handleCancelRename}
                                 onDeleteRequest={setDeleteTarget}
+                                allFiles={filteredFiles}
+                                onCreateNode={onCreateNode}
                             />
                         ))}
                     </div>
-                )}
+
+                    <DragOverlay>
+                        {activeDragItem ? (
+                            <div className="px-3 py-2 bg-white text-gray-900 text-sm font-medium rounded-lg shadow-float border border-gray-200/80 flex items-center gap-2 opacity-90 rotate-2 cursor-grabbing w-48">
+                                <FileText className="w-4 h-4 text-indigo-500" />
+                                <span className="truncate">{activeDragItem.name}</span>
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                </DndContext>
             </nav>
 
             {/* Settings */}

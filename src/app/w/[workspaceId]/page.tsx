@@ -134,9 +134,9 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
 
     // -- Handlers --
 
-    const handleCreateNode = async (type: 'file' | 'folder') => {
+    const handleCreateNode = async (type: 'file' | 'folder', parentId: string = '') => {
         try {
-            await createDocument(workspaceId, null, type);
+            await createDocument(workspaceId, parentId || null, type);
             await fetchFiles();
         } catch (e) {
             console.error("Create failed", e);
@@ -253,6 +253,22 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         }
     }, []); // No dependencies - uses ref for current value
 
+    const handleSuggestInsertion = useCallback((change: { insertionPoint: string; textToInsert: string; reason?: string }): string => {
+        const actions = editorActionsRef.current;
+        if (actions && actions.applyInlineInsertion) {
+            const result = actions.applyInlineInsertion(change.insertionPoint, change.textToInsert);
+            if (result === true) {
+                return `Applied suggested insertion: Added "${change.textToInsert.slice(0, 30)}..." after "${change.insertionPoint.slice(0, 30)}..."`;
+            } else if (typeof result === 'string') {
+                return result;
+            } else {
+                return `Insertion failed: Could not find insertion point "${change.insertionPoint.slice(0, 50)}..." in the document.`;
+            }
+        } else {
+            return "Edit failed: No editor available. Please open a file first.";
+        }
+    }, []);
+
     if (loading) {
         return (
             <div className="bg-white h-screen text-gray-500 flex items-center justify-center">
@@ -273,6 +289,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                 isSaved={saveStatus === 'saved' || saveStatus === 'idle'}
                 onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 onRenameWorkspace={handleWorkspaceRename}
+                onRenameDocument={selectedFile ? (newName) => handleRename(selectedFile.id, newName) : undefined}
             />
 
             {/* Upload Progress Toast */}
@@ -367,6 +384,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     onInsertText={handleInsertText}
                     onReplaceSelection={handleReplaceSelection}
                     onSuggestEdit={handleSuggestEdit}
+                    onSuggestInsertion={handleSuggestInsertion}
                     workspaceId={workspaceId}
                     selectedFile={selectedFile}
                     editorContent={editorContent}
@@ -399,7 +417,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                 {selectedFile && editorContent && (
                     <div
                         className="prose prose-lg max-w-none font-serif"
-                        dangerouslySetInnerHTML={{ __html: editorContent }}
+                        dangerouslySetInnerHTML={{ __html: editorActionsRef.current?.getHTML() || "" }}
                     />
                 )}
             </FocusMode>

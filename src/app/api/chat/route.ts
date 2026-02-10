@@ -35,7 +35,7 @@ const fsUpdateFile = tool(
     async () => "placeholder",
     {
         name: "fs_update_file",
-        description: "Update a file by finding and replacing specific text. Use for surgical edits to existing documents.",
+        description: "Update a file by finding and replacing specific text. Use for surgical edits to existing documents. DO NOT use this for the currently open file (use suggest_edit instead).",
         schema: z.object({
             path: z.string().describe("Path to the file"),
             search_text: z.string().describe("Exact text to find"),
@@ -60,7 +60,7 @@ const insertText = tool(
     async () => "placeholder",
     {
         name: "insert_text",
-        description: "Insert text at the current cursor position in the editor. Use this to add new content to the user's document.",
+        description: "Insert text at the current cursor position in the editor. Use this for CREATING NEW CONTENT (generation, completion) where you are not replacing anything.",
         schema: z.object({
             text: z.string().describe("The text to insert at the cursor position")
         })
@@ -83,7 +83,7 @@ const suggestEdit = tool(
     async () => "placeholder",
     {
         name: "suggest_edit",
-        description: "Propose an edit that the user can accept or reject. If the text appears multiple times, call this tool multiple times (once for each instance).",
+        description: "Propose an edit that the user can accept or reject. REQUIRED for the currently open file. If the text appears multiple times, call this tool multiple times (once for each instance).",
         schema: z.object({
             original_text: z.string().describe("The original text to replace (must match exactly)"),
             suggested_text: z.string().describe("The suggested replacement text"),
@@ -92,17 +92,20 @@ const suggestEdit = tool(
     }
 );
 
-const addComment = tool(
+const suggestInsertion = tool(
     async () => "placeholder",
     {
-        name: "add_comment",
-        description: "Add an inline comment to a specific part of the document. Use for feedback or notes.",
+        name: "suggest_insertion",
+        description: "Propose new text to INSERT at a specific location. Use this for adding NEW content (rows, paragraphs) without replacing anything. Returns green text with accept/reject buttons.",
         schema: z.object({
-            target_text: z.string().describe("The text to attach the comment to"),
-            comment: z.string().describe("The comment content")
+            insertion_point: z.string().describe("The exact text pattern to locate the insertion point. The new text will be inserted AFTER this text."),
+            text_to_insert: z.string().describe("The new text to add"),
+            reason: z.string().optional().describe("Explanation for the addition")
         })
     }
 );
+
+
 
 const openFileInEditor = tool(
     async () => "placeholder",
@@ -136,7 +139,7 @@ const controllerTools = [
     // File system
     fsReadFile, fsWriteFile, fsUpdateFile, fsListDirectory,
     // Editor/writing
-    insertText, replaceSelection, suggestEdit, addComment, openFileInEditor,
+    insertText, replaceSelection, suggestEdit, suggestInsertion, openFileInEditor,
     // Delegation
     consultWriter
 ];
@@ -180,6 +183,11 @@ The Writer is a specialized model tuned for high-quality prose. It is better tha
 2. **Exact Matching:** usage of \`suggest_edit\` requires EXACT matching of \`original_text\`. 
    - Copy the text *exactly* from the file content provided below.
    - If the Writer returns a new version, make sure you know exactly where it goes.
+3. **OPEN FILE RULE:** 
+   - **Modifying existing text?** -> Use \`suggest_edit\`. matches \`original_text\` EXACTLY.
+   - **Adding new text?** -> Use \`insert_text\`. Puts text at the cursor.
+   - DO NOT use \`fs_update_file\` or \`fs_write_file\` on the open file. The system will block it.
+   - For background files (not open), you MAY use \`fs_update_file\`.
 
 ## WORKSPACE CONTEXT
 ### Files
@@ -204,7 +212,7 @@ ${memory ? `### Memory
 1. Analyze the Request.
 2. If it requires creative writing/editing -> Call \`consult_writer\`.
 3. If it requires file ops -> Call \`fs_*\` tools.
-4. Once you have the text from the Writer, apply it using \`suggest_edit\` or \`insert_text\`.
+4. Once you have the text from the Writer, apply it using \`suggest_edit\` (if changing text) or \`insert_text\` (if adding new text).
 `;
 }
 

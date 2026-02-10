@@ -180,6 +180,19 @@ export const TOOL_DEFINITIONS = [
                 path: { type: "string", description: "Directory path (defaults to root)" }
             }
         }
+    },
+    {
+        name: "suggest_insertion",
+        description: "Propose new text to INSERT at a specific location",
+        parameters: {
+            type: "object",
+            properties: {
+                insertion_point: { type: "string", description: "Text pattern to locate" },
+                text_to_insert: { type: "string", description: "Text to insert" },
+                reason: { type: "string", description: "Explanation" }
+            },
+            required: ["insertion_point", "text_to_insert"]
+        }
     }
 ];
 

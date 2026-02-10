@@ -1,5 +1,3 @@
-"use client";
-
 import {
     TiptapImage,
     TiptapLink,
@@ -11,6 +9,10 @@ import {
     Placeholder,
     HighlightExtension,
 } from "novel";
+import { Color } from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
+import TextAlign from "@tiptap/extension-text-align";
+import { Markdown } from "tiptap-markdown";
 import { InlineDiff } from "./diff-extension";
 
 // Placeholder configuration - using Novel's bundled version
@@ -123,5 +125,10 @@ export const defaultExtensions = [
     highlight,
     underline,
     InlineDiff as any,
+    Color,
+    TextStyle,
+    TextAlign.configure({
+        types: ["heading", "paragraph"],
+    }),
+    Markdown,
 ];
-
