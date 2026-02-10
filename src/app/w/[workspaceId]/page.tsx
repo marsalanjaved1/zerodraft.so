@@ -213,20 +213,20 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         }
     }, [editorActions]);
 
-    const handleSuggestEdit = useCallback((change: { id: string; original: string; suggested: string; reason?: string }) => {
+    const handleSuggestEdit = useCallback((change: { id: string; original: string; suggested: string; reason?: string }): string => {
         const actions = editorActionsRef.current;
-        console.log("[handleSuggestEdit] Called with:", change);
-        console.log("[handleSuggestEdit] editorActionsRef.current:", actions);
         // Apply inline tracked change in editor
         if (actions) {
-            console.log("[handleSuggestEdit] Calling applyInlineChange...");
-            const applied = actions.applyInlineChange(change.original, change.suggested, change.id);
-            console.log("[handleSuggestEdit] Applied:", applied);
-            if (!applied) {
-                console.warn("Could not find original text in document:", change.original);
+            const result = actions.applyInlineChange(change.original, change.suggested, change.id);
+            if (result === true) {
+                return `Applied inline change: ~~"${change.original.slice(0, 30)}..."~~ → "${change.suggested.slice(0, 30)}..."`;
+            } else if (typeof result === 'string') {
+                return result; // Error message from applyInlineChange
+            } else {
+                return `Edit failed: Could not find "${change.original.slice(0, 50)}..." in the document. Try reading the file first.`;
             }
         } else {
-            console.warn("[handleSuggestEdit] No editorActions available!");
+            return "Edit failed: No editor available. Please open a file first.";
         }
     }, []); // No dependencies - uses ref for current value
 
@@ -346,6 +346,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     onSuggestEdit={handleSuggestEdit}
                     workspaceId={workspaceId}
                     selectedFile={selectedFile}
+                    editorContent={editorContent}
                     onRefreshFiles={fetchFiles}
                     onOpenFile={(fileId) => {
                         // Find the file in the tree and select it

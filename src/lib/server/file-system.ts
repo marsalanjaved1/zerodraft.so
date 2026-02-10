@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fuzzyReplace } from "@/lib/utils/fuzzy-match";
 
 export interface FileNode {
     id: string;
@@ -150,6 +151,26 @@ export class FileSystem {
         }
 
         return `Successfully updated file: ${document.title}`;
+    }
+
+    /**
+     * Patch a file using search-and-replace (fuzzy matching)
+     */
+    async patchFile(path: string, searchText: string, replacementText: string): Promise<string> {
+        // Read the current content
+        const content = await this.readFile(path);
+        if (content.startsWith("Error:")) return content;
+        if (content === "(empty file)") return `Error: File "${path}" is empty. Use fs_write_file to write content instead.`;
+
+        // Use fuzzy replace to find and replace
+        const result = fuzzyReplace(content, searchText, replacementText);
+
+        if (!result.success) {
+            return `Error: Could not find "${searchText.slice(0, 80)}..." in ${path}. Read the file first and use the exact text.`;
+        }
+
+        // Write back the patched content using updateFile
+        return await this.updateFile(path, result.newContent);
     }
 
     /**

@@ -57,9 +57,10 @@ interface AgentPanelProps {
     onFilesChange?: (files: FileNode[]) => void;
     onInsertText?: (text: string) => void;
     onReplaceSelection?: (text: string) => void;
-    onSuggestEdit?: (change: TrackedChange) => void;
+    onSuggestEdit?: (change: TrackedChange) => string;
     workspaceId: string;
     selectedFile: FileNode | null;
+    editorContent?: string;
     chatSessionId?: string;
     onApplyDiff?: (diff: { removed: string; added: string; position: number }) => void;
     onRefreshFiles?: () => void;
@@ -94,13 +95,13 @@ function buildFolderTree(files: FileNode[], prefix: string = ""): string {
 
 // Available models
 const MODELS = [
-    { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
-    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
-    { id: "anthropic/claude-opus-4.5", name: "Claude Opus 4.5" },
-    { id: "moonshotai/kimi-k2-thinking", name: "Kimi k2 Thinking" },
-    { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash" },
-    { id: "deepseek/deepseek-v3.2", name: "DeepSeek v3.2" },
-    { id: "minimax/minimax-m2.1", name: "Minimax M2.1" },
+    { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5", maxTokens: 200000 },
+    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", maxTokens: 200000 },
+    { id: "anthropic/claude-opus-4.5", name: "Claude Opus 4.5", maxTokens: 200000 },
+    { id: "moonshotai/kimi-k2-thinking", name: "Kimi k2 Thinking", maxTokens: 200000 },
+    { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", maxTokens: 1000000 },
+    { id: "deepseek/deepseek-v3.2", name: "DeepSeek v3.2", maxTokens: 64000 },
+    { id: "minimax/minimax-m2.1", name: "Minimax M2.1", maxTokens: 32000 },
 ];
 
 // Writing tool names (handled client-side)
@@ -119,6 +120,7 @@ export function AgentPanel({
     onSuggestEdit,
     workspaceId,
     selectedFile,
+    editorContent,
     chatSessionId,
     onApplyDiff,
     onRefreshFiles,
@@ -262,9 +264,9 @@ export function AgentPanel({
             }
             case "suggest_edit": {
                 if (args.original_text && args.suggested_text) {
-                    // Apply inline diff in editor
+                    // Apply inline diff in editor and get result
                     if (onSuggestEdit) {
-                        onSuggestEdit({
+                        const result = onSuggestEdit({
                             id: `change-${Date.now()}`,
                             original: args.original_text,
                             suggested: args.suggested_text,
@@ -272,10 +274,11 @@ export function AgentPanel({
                             status: 'pending',
                             createdAt: new Date()
                         });
+                        return result; // Propagate success/failure message to the agent
                     }
-                    return `Applied inline change: ~~"${args.original_text.slice(0, 20)}..."~~ → "${args.suggested_text.slice(0, 20)}..."`;
+                    return "Suggest edit action queued - no handler available.";
                 }
-                return "Suggest edit action queued - missing text.";
+                return "Suggest edit action failed - missing original_text or suggested_text.";
             }
             case "add_comment": {
                 return `Comment added on: "${args.target_text?.slice(0, 30)}...": ${args.comment}`;
@@ -377,7 +380,7 @@ export function AgentPanel({
                         currentFile: selectedFile ? {
                             name: selectedFile.name,
                             path: selectedFile.path,
-                            content: selectedFile.content?.slice(0, 5000)
+                            content: editorContent || selectedFile.content || ""
                         } : null,
                         contextFiles: contextFiles.length > 0 ? contextFiles.map(f => ({
                             name: f.name,
@@ -392,6 +395,67 @@ export function AgentPanel({
 
                 if (!response.ok) throw new Error("API request failed");
 
+                const contentType = response.headers.get("content-type") || "";
+
+                // Handle SSE streaming response (final messages)
+                if (contentType.includes("text/event-stream")) {
+                    const reader = response.body?.getReader();
+                    if (!reader) throw new Error("No response body");
+
+                    const decoder = new TextDecoder();
+                    let accumulatedContent = "";
+                    const assistantMessageId = crypto.randomUUID();
+
+                    // Add an empty assistant message that we'll update with tokens
+                    const streamMessage: Message = {
+                        id: assistantMessageId,
+                        role: "assistant",
+                        content: "",
+                    };
+                    currentMessages = [...currentMessages, streamMessage];
+                    onMessagesUpdate(currentMessages);
+
+                    let buffer = "";
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split("\n");
+                        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+                        for (const line of lines) {
+                            if (!line.startsWith("data: ")) continue;
+                            try {
+                                const event = JSON.parse(line.slice(6));
+                                if (event.type === "token" && event.content) {
+                                    accumulatedContent += event.content;
+                                    // Update the message in-place for progressive display
+                                    currentMessages = currentMessages.map(m =>
+                                        m.id === assistantMessageId
+                                            ? { ...m, content: accumulatedContent }
+                                            : m
+                                    );
+                                    onMessagesUpdate(currentMessages);
+                                } else if (event.type === "error") {
+                                    accumulatedContent += `\n\nError: ${event.content}`;
+                                    currentMessages = currentMessages.map(m =>
+                                        m.id === assistantMessageId
+                                            ? { ...m, content: accumulatedContent }
+                                            : m
+                                    );
+                                    onMessagesUpdate(currentMessages);
+                                }
+                                // "done" type — stream is complete, loop will exit on next read
+                            } catch {
+                                // Skip unparseable lines
+                            }
+                        }
+                    }
+                    break; // Exit agentic loop — final message is done
+                }
+
+                // Handle JSON response (tool calls or legacy messages)
                 const data = await response.json();
 
                 // Handle tool calls
@@ -445,8 +509,14 @@ export function AgentPanel({
                                 const result = executeWritingToolLocal(toolCall.name, args);
                                 updateToolStatus("completed", result);
                             } else if (toolCall.name.startsWith("fs_")) {
+                                // Check if reading current file to provide live content
+                                let overrideContent: string | undefined;
+                                if (toolCall.name === "fs_read_file" && selectedFile && args.path === selectedFile.path) {
+                                    overrideContent = editorContent;
+                                }
+
                                 // Execute Server-Side File System Tool
-                                const result = await executeFileSystemTool(workspaceId, toolCall.name, args);
+                                const result = await executeFileSystemTool(workspaceId, toolCall.name, args, overrideContent);
                                 updateToolStatus("completed", result);
 
                                 // Refresh sidebar after file creation/write operations
@@ -817,37 +887,78 @@ export function AgentPanel({
                         </div>
                     )}
 
-                    {/* Input Area */}
                     <div className="p-3 bg-white border-t border-gray-200">
-                        {/* Memory toggle button */}
-                        <button
-                            onClick={() => setShowMemory(!showMemory)}
-                            className={`mb-2 flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${showMemory || agentMemory.length > 0
-                                ? "bg-indigo-50 text-indigo-600"
-                                : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                                }`}
-                        >
-                            <Target className="w-3 h-3" />
-                            Context
-                            {agentMemory.length > 0 && (
-                                <span className="bg-indigo-500 text-white text-[10px] px-1.5 rounded-full">
-                                    {agentMemory.length}
-                                </span>
+                        <div className="flex items-center justify-between mb-2">
+                            {/* Memory toggle button */}
+                            <button
+                                onClick={() => setShowMemory(!showMemory)}
+                                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${showMemory || agentMemory.length > 0
+                                    ? "bg-indigo-50 text-indigo-600"
+                                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                    }`}
+                            >
+                                <Target className="w-3 h-3" />
+                                Context
+                                {agentMemory.length > 0 && (
+                                    <span className="bg-indigo-500 text-white text-[10px] px-1.5 rounded-full">
+                                        {agentMemory.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Token Usage Indicator */}
+                            {selectedFile && (
+                                <div className="flex items-center gap-1.5" title="Estimated context usage">
+                                    <div className="relative w-4 h-4 flex items-center justify-center">
+                                        <svg className="w-full h-full transform -rotate-90">
+                                            <circle
+                                                cx="8"
+                                                cy="8"
+                                                r="6"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                fill="none"
+                                                className="text-gray-100"
+                                            />
+                                            <circle
+                                                cx="8"
+                                                cy="8"
+                                                r="6"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                fill="none"
+                                                className="text-indigo-500 transition-all duration-300"
+                                                strokeDasharray={37.7}
+                                                strokeDashoffset={37.7 * (1 - Math.min(1, ((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / (MODELS.find(m => m.id === selectedModel)?.maxTokens || 200000)))}
+                                            />
+                                        </svg>
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 font-medium">
+                                        {Math.round(((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / 1000)}k / {Math.round((MODELS.find(m => m.id === selectedModel)?.maxTokens || 200000) / 1000)}k
+                                    </span>
+                                </div>
                             )}
-                        </button>
+                        </div>
 
                         {/* Context File Chips */}
-                        {contextFiles.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                {contextFiles.map(f => (
-                                    <ContextChip
-                                        key={f.id}
-                                        file={f}
-                                        onRemove={() => handleRemoveContextFile(f.id)}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                            {/* Active File Chip */}
+                            {selectedFile && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 ring-1 ring-green-200/50" title="Active Document (Automatically included)">
+                                    <FileText className="w-3 h-3" />
+                                    <span className="truncate max-w-[100px] font-medium">{selectedFile.name}</span>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 ml-0.5 animate-pulse" />
+                                </span>
+                            )}
+                            {/* Other Context Files */}
+                            {contextFiles.map(f => (
+                                <ContextChip
+                                    key={f.id}
+                                    file={f}
+                                    onRemove={() => handleRemoveContextFile(f.id)}
+                                />
+                            ))}
+                        </div>
 
                         <div className="relative">
                             {/* Mention Dropdown */}
@@ -941,16 +1052,19 @@ export function AgentPanel({
 // Helper functions
 function getToolDisplayName(name: string): string {
     const names: Record<string, string> = {
-        "fs_read_file": "Reading file",
-        "fs_list_directory": "Listing files",
-        "fs_write_file": "Writing to file",
-        "fs_update_file": "Updating file",
-        "search_files": "Searching files",
-        "web_search": "Searching web",
-        "insert_text": "Inserting text",
-        "replace_selection": "Replacing selection",
+        "fs_read_file": "Reading document",
+        "fs_list_directory": "Browsing files",
+        "fs_write_file": "Creating document",
+        "fs_update_file": "Updating document",
+        "search_files": "Searching",
+        "web_search": "Searching the web",
+        "insert_text": "Adding text",
+        "replace_selection": "Replacing text",
+        "suggest_edit": "Editing document",
+        "add_comment": "Adding a note",
+        "open_file_in_editor": "Opening document",
     };
-    return names[name] || name;
+    return names[name] || "Working...";
 }
 
 function formatToolArgs(name: string, args: string): string {
@@ -961,8 +1075,16 @@ function formatToolArgs(name: string, args: string): string {
         if (name === "fs_write_file") return parsed.path;
         if (name === "fs_update_file") return parsed.path;
         if (name === "search_files") return `"${parsed.query}"`;
-        return JSON.stringify(parsed);
+        if (name === "suggest_edit" && parsed.original_text && parsed.suggested_text) {
+            const orig = parsed.original_text.slice(0, 30);
+            const sugg = parsed.suggested_text.slice(0, 30);
+            return `"${orig}${parsed.original_text.length > 30 ? '…' : ''}" → "${sugg}${parsed.suggested_text.length > 30 ? '…' : ''}"`;
+        }
+        if (name === "add_comment") return parsed.comment?.slice(0, 50) || "";
+        if (name === "open_file_in_editor") return parsed.filename;
+        if (name === "insert_text") return parsed.text?.slice(0, 50) || "";
+        return "";
     } catch {
-        return args;
+        return "";
     }
 }

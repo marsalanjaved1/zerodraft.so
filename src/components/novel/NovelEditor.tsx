@@ -33,7 +33,7 @@ export interface EditorActions {
     getText: () => string;
     getWordCount: () => { words: number; characters: number };
     insertText: (text: string) => void;
-    applyInlineChange: (original: string, suggested: string, changeId: string) => boolean;
+    applyInlineChange: (original: string, suggested: string, changeId: string) => boolean | string;
 }
 
 interface NovelEditorProps {
@@ -73,7 +73,7 @@ export function NovelEditor({
     } = useGhostText({
         enabled: enableGhostText,
         model: ghostTextModel,
-        context: file ? { fileName: file.name, fileContent: content?.slice(0, 2000) } : undefined
+        context: file ? { fileName: file.name, fileContent: content } : undefined
     });
 
     // Drag and drop handlers
@@ -199,10 +199,9 @@ export function NovelEditor({
 
     // Apply inline tracked change to editor using styled markers
     // Uses fuzzy matching to handle whitespace/formatting differences
-    const applyInlineChange = useCallback((original: string, suggested: string, changeId: string) => {
+    const applyInlineChange = useCallback((original: string, suggested: string, changeId: string): boolean | string => {
         if (!editorInstance) {
-            console.warn("applyInlineChange: No editor instance");
-            return false;
+            return "RETRY: No document is open. Open the document first, then try the edit again. Do not mention this to the user — just open the file and retry.";
         }
 
         // Get complete document text for fuzzy matching
@@ -238,8 +237,7 @@ export function NovelEditor({
         const match = findBestMatch(fullText, searchOriginal);
 
         if (!match.found) {
-            console.warn("applyInlineChange: Could not find original text (even with fuzzy match):", searchOriginal);
-            return false;
+            return `RETRY: The text you provided does not exist in the document. Re-read the document content above, find the correct text, and try again. Do not mention this to the user — just silently retry with the right text.`;
         }
 
         console.log(`applyInlineChange: Found via ${match.matchType} (${Math.round(match.similarity * 100)}% similar):`,
@@ -260,15 +258,13 @@ export function NovelEditor({
         }
 
         if (foundPos === null || foundEndPos === null) {
-            console.warn("applyInlineChange: Could not map fuzzy match to document position");
-            return false;
+            return "RETRY: Could not locate the text position. The document may have changed. Re-read the document and try again. Do not mention this to the user.";
         }
 
         // SAFETY: For live editor edits, only allow exact and normalized matches.
         // Fuzzy matches are too risky — they could target the wrong text.
         if (match.matchType === 'fuzzy') {
-            console.warn("applyInlineChange: REJECTED fuzzy match for safety — only exact/normalized allowed in editor");
-            return false;
+            return `RETRY: The text was close but not exact enough. The closest text in the document is: "${match.matchedText.slice(0, 120)}". Copy this exact text and use it as the original_text. Do not mention this to the user.`;
         }
 
         // For normalized matches, verify content integrity (whitespace-only differences)
@@ -277,10 +273,7 @@ export function NovelEditor({
         const normalizedSearch = normalizeText(searchOriginal);
 
         if (normalizedFound !== normalizedSearch) {
-            console.warn("applyInlineChange: ABORTED - Content mismatch detected (user likely edited file).");
-            console.warn(`Expected: "${normalizedSearch}"`);
-            console.warn(`Found:    "${normalizedFound}"`);
-            return false;
+            return `RETRY: The document has changed since you last saw it. Re-read the document and try again with the current text. Do not mention this to the user.`;
         }
 
         console.log("applyInlineChange: Found text at position", foundPos, "to", foundEndPos);
@@ -299,17 +292,15 @@ export function NovelEditor({
                     type: "inlineDiff",
                     attrs: {
                         original,
-                        suggested: suggestedHtml, // Store HTML in attribute
+                        suggested: suggestedHtml,
                         changeId,
                     }
                 })
                 .run();
 
-            console.log("applyInlineChange: Successfully applied inline change");
             return true;
-        } catch (error) {
-            console.error("applyInlineChange: Error applying change:", error);
-            return false;
+        } catch (error: any) {
+            return `Edit failed: ${error.message || 'Unknown error applying change'}`;
         }
     }, [editorInstance]);
 
