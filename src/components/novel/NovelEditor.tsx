@@ -20,6 +20,7 @@ import { EditorBubbleMenu } from "./bubble-menu";
 import { SearchBar } from "@/components/SearchBar";
 import { useEditorSearch } from "@/lib/hooks/use-editor-search";
 import { useGhostText } from "@/lib/hooks/use-ghost-text";
+import { findBestMatch, normalizeText } from "@/lib/utils/fuzzy-match";
 
 export interface EditorActions {
     undo: () => void;
@@ -197,45 +198,88 @@ export function NovelEditor({
     };
 
     // Apply inline tracked change to editor using styled markers
+    // Uses fuzzy matching to handle whitespace/formatting differences
     const applyInlineChange = useCallback((original: string, suggested: string, changeId: string) => {
         if (!editorInstance) {
             console.warn("applyInlineChange: No editor instance");
             return false;
         }
 
-        // Find the text position in the document
+        // Get complete document text for fuzzy matching
         const { doc } = editorInstance.state;
-        let foundPos: number | null = null;
-        let foundEndPos: number | null = null;
+        let fullText = '';
+        const nodePositions: { start: number; end: number; textStart: number }[] = [];
 
-        // Normalize text checks to handle some whitespace variance and HTML tags
-        // If original looks like HTML (starts with <), strip tags to extract text content
+        doc.descendants((node, pos) => {
+            if (node.isText && node.text) {
+                nodePositions.push({
+                    start: pos,
+                    end: pos + node.text.length,
+                    textStart: fullText.length
+                });
+                fullText += node.text;
+            }
+        });
+
+        // Strip HTML tags if original looks like HTML
         let searchOriginal = original;
         if (original.trim().startsWith('<') && original.includes('>')) {
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = original;
                 searchOriginal = tempDiv.textContent || original;
-                console.log("applyInlineChange: Stripped HTML from original:", original, "->", searchOriginal);
+                console.log("applyInlineChange: Stripped HTML:", original, "->", searchOriginal);
             } catch (e) {
                 console.warn("applyInlineChange: Failed to strip HTML", e);
             }
         }
 
-        doc.descendants((node, pos) => {
-            if (foundPos !== null) return false; // Already found
-            if (node.isText && node.text) {
-                const index = node.text.indexOf(searchOriginal);
-                if (index !== -1) {
-                    foundPos = pos + index;
-                    foundEndPos = foundPos + searchOriginal.length;
-                    return false; // Stop searching
-                }
+        // Use fuzzy matching to find the text
+        const match = findBestMatch(fullText, searchOriginal);
+
+        if (!match.found) {
+            console.warn("applyInlineChange: Could not find original text (even with fuzzy match):", searchOriginal);
+            return false;
+        }
+
+        console.log(`applyInlineChange: Found via ${match.matchType} (${Math.round(match.similarity * 100)}% similar):`,
+            `"${match.matchedText.slice(0, 50)}..."`);
+
+        // Map text position back to document position
+        let foundPos: number | null = null;
+        let foundEndPos: number | null = null;
+
+        for (const nodePos of nodePositions) {
+            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
+            if (match.startIndex >= nodePos.textStart && match.startIndex < nodeTextEnd) {
+                const offsetInNode = match.startIndex - nodePos.textStart;
+                foundPos = nodePos.start + offsetInNode;
+                foundEndPos = foundPos + match.matchedText.length;
+                break;
             }
-        });
+        }
 
         if (foundPos === null || foundEndPos === null) {
-            console.warn("applyInlineChange: Could not find original text in document:", searchOriginal);
+            console.warn("applyInlineChange: Could not map fuzzy match to document position");
+            return false;
+        }
+
+        // SAFETY: For live editor edits, only allow exact and normalized matches.
+        // Fuzzy matches are too risky — they could target the wrong text.
+        if (match.matchType === 'fuzzy') {
+            console.warn("applyInlineChange: REJECTED fuzzy match for safety — only exact/normalized allowed in editor");
+            return false;
+        }
+
+        // For normalized matches, verify content integrity (whitespace-only differences)
+        const foundText = fullText.slice(match.startIndex, match.endIndex);
+        const normalizedFound = normalizeText(foundText);
+        const normalizedSearch = normalizeText(searchOriginal);
+
+        if (normalizedFound !== normalizedSearch) {
+            console.warn("applyInlineChange: ABORTED - Content mismatch detected (user likely edited file).");
+            console.warn(`Expected: "${normalizedSearch}"`);
+            console.warn(`Found:    "${normalizedFound}"`);
             return false;
         }
 

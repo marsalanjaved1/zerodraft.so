@@ -2,6 +2,7 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import fs from "fs/promises";
 import path from "path";
+import { fuzzyReplace } from "@/lib/utils/fuzzy-match";
 
 const WORKSPACE_ROOT = process.cwd();
 
@@ -56,10 +57,10 @@ export const fsWriteFile = new DynamicStructuredTool({
 
 export const fsUpdateFile = new DynamicStructuredTool({
     name: "fs_update_file",
-    description: "Update a file by replacing specific text. Finds the search_text and replaces it with replacement_text.",
+    description: "Update a file by replacing specific text. Uses fuzzy matching to handle whitespace differences.",
     schema: z.object({
         file_path: z.string().describe("Relative path to the file to update"),
-        search_text: z.string().describe("The exact text to find in the file"),
+        search_text: z.string().describe("The text to find in the file (fuzzy matched)"),
         replacement_text: z.string().describe("The text to replace it with"),
     }),
     func: async ({ file_path, search_text, replacement_text }) => {
@@ -67,18 +68,22 @@ export const fsUpdateFile = new DynamicStructuredTool({
             const fullPath = validatePath(file_path);
             const content = await fs.readFile(fullPath, "utf-8");
 
-            if (!content.includes(search_text)) {
-                return `Error: Could not find the text "${search_text}" in ${file_path}`;
+            const result = fuzzyReplace(content, search_text, replacement_text);
+
+            if (!result.success) {
+                return `Error: Could not find text "${search_text.slice(0, 50)}..." in ${file_path} (tried exact, normalized, and fuzzy matching)`;
             }
 
-            const newContent = content.replace(search_text, replacement_text);
-            await fs.writeFile(fullPath, newContent, "utf-8");
-            return `Successfully updated ${file_path}: replaced "${search_text}" with "${replacement_text}"`;
+            await fs.writeFile(fullPath, result.newContent, "utf-8");
+            const { matchInfo } = result;
+            const simPct = Math.round(matchInfo.similarity * 100);
+            return `Successfully updated ${file_path}: ${matchInfo.matchType} match replaced (${simPct}% similar)`;
         } catch (err: any) {
             return `Error updating file: ${err.message}`;
         }
     },
 });
+
 
 export const fsListDirectory = new DynamicStructuredTool({
     name: "fs_list_directory",
