@@ -115,45 +115,73 @@ const openFileInEditor = tool(
     }
 );
 
-// All tools combined
-const toolDefinitions = [
+
+// --- SPECIALIST TOOLS (Internal Only) ---
+
+const consultWriter = tool(
+    async () => "placeholder",
+    {
+        name: "consult_writer",
+        description: "Ask the Specialist Writer to draft, rewrite, or edit content. use this for ALL creative writing tasks. The writer is better at prose than you are.",
+        schema: z.object({
+            instruction: z.string().describe("Specific instructions for the writer (e.g., 'Rewrite this paragraph to be more punchy', 'Draft an intro about...')"),
+            context: z.string().optional().describe("The text to rewrite or relevant context"),
+            tone: z.string().optional().describe("Desired tone (e.g., 'professional', 'witty', 'dark')")
+        })
+    }
+);
+
+// Controller sees ALL tools, including the ability to consult the writer
+const controllerTools = [
     // File system
     fsReadFile, fsWriteFile, fsUpdateFile, fsListDirectory,
     // Editor/writing
-    insertText, replaceSelection, suggestEdit, addComment, openFileInEditor
+    insertText, replaceSelection, suggestEdit, addComment, openFileInEditor,
+    // Delegation
+    consultWriter
 ];
 
+// Writer Logic
+const writerSystemPrompt = `You are the **Lead Writer** for ZeroDraft.
+Your ONLY job is to write exceptional, high-quality content based on the instructions provided.
+
+## YOUR OPERATING RULES:
+1. **Plain Text Only:** Return ONLY the raw text unless specifically asked for Markdown. **NEVER** wrap content in HTML tags (like <p>, <div>) unless explicitly requested.
+2. **No Meta-Talk:** Do not say "Here is the draft:" or "I hope you like it." Just write the content.
+3. **Be Brutal:** If the user asks for a critique, be precise and insightful. If asked to rewrite, make it significantly better.
+4. **Context Aware:** Use the provided context to match the existing style (unless asked to change it).
+5. **No Hallucinations:** Do not invent facts if the instruction implies factual accuracy, but feel free to be creative with fiction/prose.
+
+You are the talent. The Controller handles the logistics. You simply Write.`;
+
+
 // Build system prompt with workspace context
-function buildSystemPrompt(folderTree: string, currentFile: any | null, memory?: any): string {
+function buildControllerSystemPrompt(folderTree: string, currentFile: any | null, memory?: any): string {
     const hasOpenFile = currentFile !== null && currentFile !== undefined;
 
-    return `You are **ZeroDraft** — the user's writing partner. You help them write, edit, and organize their documents.
+    return `You are **ZeroDraft Controller** — the orchestrator of the user's writing session.
+You manage the workspace, navigate files, and — most importantly — **delegate creative work to your Specialist Writer.**
 
-## YOUR VOICE (CRITICAL — READ THIS FIRST)
+## YOUR ROLE
+You do NOT write long-form content yourself. You are the project manager.
+- **User wants a file?** -> You find it.
+- **User wants to check a fact?** -> You read the file.
+- **User wants to WRITE, DRAFT, or EDIT prose?** -> **You call \`consult_writer\`.**
 
-You are a **collaborative writer**, not a developer tool. The user should never feel like they're talking to an AI that executes commands. They should feel like they're working with a thoughtful, skilled writing partner.
+## THE SPECIALIST WRITER
+You have a tool called \`consult_writer\`. USE IT.
+The Writer is a specialized model tuned for high-quality prose. It is better than you at writing.
+- **Input:** Give it clear instructions and the relevant text context.
+- **Output:** It will return the raw text.
+- **Action:** You then take that text and use \`suggest_edit\` or \`insert_text\` to put it in the document.
 
-### ABSOLUTE RULES:
-- **NEVER mention tool names** — no "suggest_edit", "fs_read_file", "insert_text", etc.
-- **NEVER describe internal processes** — no "fuzzy match", "search text", "match percentage"
-- **NEVER say "I'll use [tool]"** — just do it
-- **NEVER narrate what you're doing step by step** — just show the result
-- If something fails internally, **handle it silently** or ask naturally — never dump error details
+## CRITICAL RULES FOR EDITING
+1. **HTML TRAP:** The user is likely writing in Markdown or plain text. **DO NOT** let the Writer (or yourself) inject HTML tags like \`<p>\` or \`<span>\` unless the file is explicitly an .html file.
+2. **Exact Matching:** usage of \`suggest_edit\` requires EXACT matching of \`original_text\`. 
+   - Copy the text *exactly* from the file content provided below.
+   - If the Writer returns a new version, make sure you know exactly where it goes.
 
-### HOW TO TALK:
-- ❌ "I'll use suggest_edit to change the title for you"
-- ✅ "I've updated the title — you'll see it highlighted so you can accept or reject it."
-- ❌ "Let me read the file with fs_read_file first"
-- ✅ "Let me take a look at that document."
-- ❌ "The exact match failed. I'll retry with the correct text."
-- ✅ (silently retry, or) "I couldn't find that exact text. Could you point me to the part you'd like changed?"
-- ❌ "I'll call open_file_in_editor and then suggest_edit"  
-- ✅ "Let me open that up and make the change for you."
-
----
-
-## WORKSPACE
-
+## WORKSPACE CONTEXT
 ### Files
 \`\`\`
 ${folderTree || "(empty workspace)"}
@@ -162,107 +190,54 @@ ${folderTree || "(empty workspace)"}
 ${hasOpenFile ? `### Currently Open: \`${currentFile.name}\`
 ${currentFile.content ? `
 \`\`\`
-${currentFile.content.slice(0, 8000)}${currentFile.content.length > 8000 ? '\n...(document continues)' : ''}
+${currentFile.content.slice(0, 10000)}
 \`\`\`
 ` : '*(Content not loaded)*'}
-` : `### No Document Open
-If the user wants edits, open the file first, then make the change.
-`}
+` : `### No Document Open`}
 
-${memory ? `### Context
+${memory ? `### Memory
 - **Goal:** ${memory.goal || 'Not specified'}
 - **Audience:** ${memory.audience || 'Not specified'}
-- **Tone:** ${memory.tone || 'Not specified'}
 ` : ''}
 
----
-
-## HOW TO WORK
-
-### Editing Text (the user asks you to change, fix, or improve something)
-${hasOpenFile ? `A file is open (${currentFile?.name}). You can edit it directly.` : `No file is open — open it first, then edit.`}
-
-1. Find the **exact text** in the document above. Copy it precisely — every character matters.
-2. Make the edit. The user will see the change highlighted with Accept/Reject buttons.
-3. If the document is truncated, read it first to find the full text.
-
-**CRITICAL:** When making edits, the \`suggested_text\` must be ONLY the replacement text itself.
-- ❌ "Here is the updated version: The new title"
-- ✅ "The new title"
-
-### When You Can't Find the Text
-If an edit fails because the text doesn't match:
-- **Try again** with the exact text from the document
-- If still unclear, ask the user naturally: "Could you highlight the part you'd like me to change?"
-- **NEVER** tell the user about match failures, percentages, or technical errors
-
-### Answering Questions
-Just answer naturally. Be concise, warm, and helpful.
-
-### Creating Documents
-Create new files when asked. Use rich Markdown formatting:
-- Headings (#, ##, ###), bold, italic, lists, code blocks
-- The document should look professional in the editor
-
----
-
-## FORMATTING RULES
-
-When generating or editing documents, **always use rich Markdown**:
-- **Headings**: \`#\` for title, \`##\` for sections, \`###\` for subsections
-- **Emphasis**: \`**bold**\` for key points, \`_italic_\` for nuance
-- **Lists**: \`-\` for bullets, \`1.\` for numbered lists
-- **Code**: Fenced code blocks with language tags
-
----
-
-## RULES
-
-### NEVER
-- Mention tool names or internal processes
-- Guess at text — read the document first  
-- Edit without understanding what the user wants
-- Say "I don't have access" — you have full workspace access
-
-### ALWAYS
-- Find the EXACT text before editing (copy from the document above)
-- If the document is truncated, read it first
-- Provide a brief reason when making edits
-- Ask for clarification when the request is ambiguous
-- Be concise — action over explanation
-
-### CHOOSING HOW TO EDIT
-- **For the open file (${hasOpenFile ? currentFile?.name : 'none'})**: ALWAYS use suggest_edit. NEVER use fs_update_file unless the user explicitly asks to "overwrite" or "replace" the entire file.
-- **For other files**: You can use fs_update_file or suggest_edit as appropriate.
-- **Multiple Instances**: If the text appears multiple times, you MUST call suggest_edit once for EACH instance.
-- **Default to tracked changes** (suggest_edit) for all user-facing content.
-
----
-
-You are the user's writing partner. Think deeply. Act precisely. Write beautifully. And never let the machinery show.`;
+## EXECUTION
+1. Analyze the Request.
+2. If it requires creative writing/editing -> Call \`consult_writer\`.
+3. If it requires file ops -> Call \`fs_*\` tools.
+4. Once you have the text from the Writer, apply it using \`suggest_edit\` or \`insert_text\`.
+`;
 }
 
 export async function POST(req: Request) {
     const { messages, model, toolResults, folderTree, currentFile, memoryContext, workspaceId, contextFiles } = await req.json();
-    const selectedModel = model || "anthropic/claude-haiku-4.5";
+    const selectedModel = model || "anthropic/claude-3.5-sonnet";
 
-    // Build system prompt with optional memory context appended
-    let systemPrompt = buildSystemPrompt(folderTree || "", currentFile, undefined);
-
-    // Add context files if provided
+    // 1. Controller Setup
+    let systemPrompt = buildControllerSystemPrompt(folderTree || "", currentFile, undefined);
     if (contextFiles && contextFiles.length > 0) {
-        systemPrompt += `\n\n### 📄 Additional Context Files\nThe user has explicitly added these files as context for their request:\n`;
+        systemPrompt += `\n\n### 📄 Additional Context Files\n`;
         for (const file of contextFiles) {
             systemPrompt += `\n**File:** \`${file.name}\` (${file.path})\n\`\`\`\n${file.content || 'No content available'}\n\`\`\`\n`;
         }
     }
+    if (memoryContext) systemPrompt += memoryContext;
 
-    if (memoryContext) {
-        systemPrompt += memoryContext;
-    }
-
-    const llm = new ChatOpenAI({
+    // Use the selected model for the Controller (it needs to be smart enough to use tools)
+    const controllerLLM = new ChatOpenAI({
         modelName: selectedModel,
+        temperature: 0, // Strict for logic
+        maxTokens: 4096,
+        configuration: {
+            baseURL: "https://openrouter.ai/api/v1",
+            apiKey: process.env.OPENROUTER_API_KEY,
+        },
+    });
+
+    // 2. Writer Setup (Can use a different model or the same one with higher temp)
+    // For now, we use the same model but with a specialized prompt and higher temperature for creativity
+    const writerLLM = new ChatOpenAI({
+        modelName: selectedModel, // Or "anthropic/claude-3-opus" if available/context allows
+        temperature: 0.7, // Creative for writing
         maxTokens: 4096,
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
@@ -272,11 +247,23 @@ export async function POST(req: Request) {
 
     const lcMessages: any[] = [new SystemMessage(systemPrompt)];
 
+    // Reconstruct conversation history
     for (const msg of messages) {
         if (msg.role === "user") {
             lcMessages.push(new HumanMessage(msg.content));
         } else if (msg.role === "assistant") {
-            lcMessages.push(new AIMessage(msg.content || ""));
+            if (msg.toolCalls) {
+                lcMessages.push(new AIMessage({
+                    content: msg.content || "",
+                    tool_calls: msg.toolCalls.map((tc: any) => ({
+                        id: tc.id,
+                        name: tc.name, // client side might store different naming, ensure consistency
+                        args: JSON.parse(tc.arguments)
+                    }))
+                }));
+            } else {
+                lcMessages.push(new AIMessage(msg.content || ""));
+            }
         } else if (msg.role === "tool") {
             lcMessages.push(new ToolMessage({
                 content: msg.content,
@@ -285,7 +272,7 @@ export async function POST(req: Request) {
         }
     }
 
-    // Handle tool results from previous iteration (Client Side Tools)
+    // Handle incoming client-side tool results
     if (toolResults && toolResults.length > 0) {
         lcMessages.push(new AIMessage({
             content: "",
@@ -295,7 +282,6 @@ export async function POST(req: Request) {
                 args: r.args || {}
             }))
         }));
-
         for (const result of toolResults) {
             lcMessages.push(new ToolMessage({
                 content: result.result,
@@ -306,53 +292,99 @@ export async function POST(req: Request) {
     }
 
     try {
-        const llmWithTools = llm.bindTools(toolDefinitions);
+        const controllerWithTools = controllerLLM.bindTools(controllerTools);
 
-        // First, check if the LLM wants to call tools (tools need atomic dispatch)
-        const response = await llmWithTools.invoke(lcMessages);
+        // --- THE AGENTIC LOOP ---
+        let loopCount = 0;
+        const MAX_LOOPS = 5;
+        let finalStream = null;
+        let finalEncodedResponse = null;
 
-        if (response.tool_calls && response.tool_calls.length > 0) {
-            return Response.json({
-                type: "tool_calls",
-                toolCalls: response.tool_calls.map(tc => ({
-                    id: tc.id,
-                    name: tc.name,
-                    args: tc.args
-                })),
-                content: typeof response.content === "string" ? response.content : ""
-            });
+        while (loopCount < MAX_LOOPS) {
+            loopCount++;
+
+            // Invoke Controller
+            const response = await controllerWithTools.invoke(lcMessages);
+
+            // Check for Tool Calls
+            if (response.tool_calls && response.tool_calls.length > 0) {
+                // Check if any tool call is internal (consult_writer)
+                const internalCalls = response.tool_calls.filter(tc => tc.name === "consult_writer");
+                const externalCalls = response.tool_calls.filter(tc => tc.name !== "consult_writer");
+
+                // If specialized Writer tools are called, execute them SERVER SIDE
+                if (internalCalls.length > 0) {
+                    // Add the assistant's "consult_writer" call to history
+                    lcMessages.push(response);
+
+                    for (const call of internalCalls) {
+                        // Execute Writer
+                        const args = call.args;
+                        const writerContext = `Instruction: ${args.instruction}\nContext: ${args.context || "None"}\nTone: ${args.tone || "Neutral"}`;
+
+                        const writerResponse = await writerLLM.invoke([
+                            new SystemMessage(writerSystemPrompt),
+                            new HumanMessage(writerContext)
+                        ]);
+
+                        // Add Writer's result as a Tool Output
+                        lcMessages.push(new ToolMessage({
+                            tool_call_id: call.id!,
+                            content: typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content),
+                            name: "consult_writer"
+                        }));
+                    }
+                    // Loop continues! Controller receives the Writer's draft and decides what to do next.
+                    continue;
+                }
+
+                // If only external tools (fs_*, suggest_edit), return to Client
+                return Response.json({
+                    type: "tool_calls",
+                    toolCalls: externalCalls.map(tc => ({
+                        id: tc.id,
+                        name: tc.name,
+                        args: tc.args
+                    })),
+                    content: typeof response.content === "string" ? response.content : ""
+                });
+            }
+
+            // No tools called -> Stream the final text response
+            const streamResponse = await controllerWithTools.stream(lcMessages);
+            const encoder = new TextEncoder();
+
+            return new Response(
+                new ReadableStream({
+                    async start(controller) {
+                        try {
+                            for await (const chunk of streamResponse) {
+                                const content = typeof chunk.content === "string" ? chunk.content : "";
+                                if (content) {
+                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
+                                }
+                            }
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+                            controller.close();
+                        } catch (streamError: any) {
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: streamError.message })}\n\n`));
+                            controller.close();
+                        }
+                    }
+                }),
+                {
+                    headers: {
+                        "Content-Type": "text/event-stream",
+                        "Cache-Control": "no-cache",
+                        "Connection": "keep-alive",
+                    },
+                }
+            );
         }
 
-        // No tool calls — stream the final message via SSE
-        const streamResponse = await llmWithTools.stream(lcMessages);
-        const encoder = new TextEncoder();
+        // Fallback if loop limit reached
+        return Response.json({ type: "error", content: "Agent iteration limit reached." }, { status: 500 });
 
-        return new Response(
-            new ReadableStream({
-                async start(controller) {
-                    try {
-                        for await (const chunk of streamResponse) {
-                            const content = typeof chunk.content === "string" ? chunk.content : "";
-                            if (content) {
-                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
-                            }
-                        }
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
-                        controller.close();
-                    } catch (streamError: any) {
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: streamError.message })}\n\n`));
-                        controller.close();
-                    }
-                }
-            }),
-            {
-                headers: {
-                    "Content-Type": "text/event-stream",
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                },
-            }
-        );
     } catch (error: any) {
         console.error("Chat API error:", error);
         return Response.json({

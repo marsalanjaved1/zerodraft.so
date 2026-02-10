@@ -109,6 +109,29 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         fetchWorkspace();
     }, [fetchFiles, fetchWorkspace]);
 
+    // Sync selectedFile with updated files (e.g. after agent edits)
+    useEffect(() => {
+        if (!selectedFile || files.length === 0) return;
+
+        const findFileById = (nodes: FileNode[], id: string): FileNode | null => {
+            for (const node of nodes) {
+                if (node.id === id) return node;
+                if (node.children) {
+                    const found = findFileById(node.children, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const updatedFile = findFileById(files, selectedFile.id);
+        if (updatedFile && updatedFile.content !== selectedFile.content) {
+            console.log("Syncing editor content from external update");
+            setSelectedFile(updatedFile);
+            setEditorContent(updatedFile.content || "");
+        }
+    }, [files, selectedFile]);
+
     // -- Handlers --
 
     const handleCreateNode = async (type: 'file' | 'folder') => {
