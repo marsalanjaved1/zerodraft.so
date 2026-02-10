@@ -7,6 +7,11 @@ export interface TrackedChange {
     original: string;
     suggested: string;
     reason?: string;
+    // New fields for line-based editing
+    startLine?: number;
+    endLine?: number;
+    replacementText?: string; // Same as suggested, but keeping for clarity with new schema
+    expectedText?: string;    // Same as original, but as provided by LLM for verification
     position?: {
         from: number;
         to: number;

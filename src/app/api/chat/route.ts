@@ -31,18 +31,7 @@ const fsWriteFile = tool(
     }
 );
 
-const fsUpdateFile = tool(
-    async () => "placeholder",
-    {
-        name: "fs_update_file",
-        description: "Update a file by finding and replacing specific text. Use for surgical edits to existing documents. DO NOT use this for the currently open file (use suggest_edit instead).",
-        schema: z.object({
-            path: z.string().describe("Path to the file"),
-            search_text: z.string().describe("Exact text to find"),
-            replacement_text: z.string().describe("Text to replace with")
-        })
-    }
-);
+
 
 const fsListDirectory = tool(
     async () => "placeholder",
@@ -85,8 +74,10 @@ const suggestEdit = tool(
         name: "suggest_edit",
         description: "Propose an edit that the user can accept or reject. REQUIRED for the currently open file. If the text appears multiple times, call this tool multiple times (once for each instance).",
         schema: z.object({
-            original_text: z.string().describe("The original text to replace (must match exactly)"),
-            suggested_text: z.string().describe("The suggested replacement text"),
+            start_line: z.number().describe("First line to replace (1-indexed, from the numbered document)"),
+            end_line: z.number().describe("Last line to replace (inclusive, 1-indexed)"),
+            replacement_text: z.string().describe("The new text to replace lines start_line through end_line"),
+            expected_text: z.string().optional().describe("What you believe the text at those lines is (for verification)"),
             reason: z.string().optional().describe("Explanation for the edit")
         })
     }
@@ -98,8 +89,9 @@ const suggestInsertion = tool(
         name: "suggest_insertion",
         description: "Propose new text to INSERT at a specific location. Use this for adding NEW content (rows, paragraphs) without replacing anything. Returns green text with accept/reject buttons.",
         schema: z.object({
-            insertion_point: z.string().describe("The exact text pattern to locate the insertion point. The new text will be inserted AFTER this text."),
+            after_line: z.number().describe("Insert new text AFTER this line number (0 = beginning of document)"),
             text_to_insert: z.string().describe("The new text to add"),
+            expected_context: z.string().optional().describe("What you believe the line after_line contains (for verification)"),
             reason: z.string().optional().describe("Explanation for the addition")
         })
     }
@@ -137,7 +129,7 @@ const consultWriter = tool(
 // Controller sees ALL tools, including the ability to consult the writer
 const controllerTools = [
     // File system
-    fsReadFile, fsWriteFile, fsUpdateFile, fsListDirectory,
+    fsReadFile, fsWriteFile, fsListDirectory,
     // Editor/writing
     insertText, replaceSelection, suggestEdit, suggestInsertion, openFileInEditor,
     // Delegation
@@ -157,6 +149,11 @@ Your ONLY job is to write exceptional, high-quality content based on the instruc
 
 You are the talent. The Controller handles the logistics. You simply Write.`;
 
+
+// Helper to number lines for context
+function numberLines(content: string): string {
+    return content.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
+}
 
 // Build system prompt with workspace context
 function buildControllerSystemPrompt(folderTree: string, currentFile: any | null, memory?: any): string {
@@ -180,14 +177,15 @@ The Writer is a specialized model tuned for high-quality prose. It is better tha
 
 ## CRITICAL RULES FOR EDITING
 1. **HTML TRAP:** The user is likely writing in Markdown or plain text. **DO NOT** let the Writer (or yourself) inject HTML tags like \`<p>\` or \`<span>\` unless the file is explicitly an .html file.
-2. **Exact Matching:** usage of \`suggest_edit\` requires EXACT matching of \`original_text\`. 
-   - Copy the text *exactly* from the file content provided below.
-   - If the Writer returns a new version, make sure you know exactly where it goes.
+2. **Line Addressing:** Use the line numbers shown in the document to target edits.
+   - \`suggest_edit\` -> provide start_line, end_line, replacement_text
+   - \`suggest_insertion\` -> provide after_line, text_to_insert
+   - Optionally include expected_text/expected_context so the system can verify correctness.
 3. **OPEN FILE RULE:** 
-   - **Modifying existing text?** -> Use \`suggest_edit\`. matches \`original_text\` EXACTLY.
-   - **Adding new text?** -> Use \`insert_text\`. Puts text at the cursor.
-   - DO NOT use \`fs_update_file\` or \`fs_write_file\` on the open file. The system will block it.
-   - For background files (not open), you MAY use \`fs_update_file\`.
+   - **Modifying existing text?** -> Use \`suggest_edit\` with line numbers.
+   - **Adding new text?** -> Use \`insert_text\` (at cursor) or \`suggest_insertion\` (after line X).
+   - DO NOT use \`fs_write_file\` on the open file. The system will block it.
+   - If a file is NOT open, use \`open_file_in_editor\` first.
 
 ## WORKSPACE CONTEXT
 ### Files
@@ -198,7 +196,7 @@ ${folderTree || "(empty workspace)"}
 ${hasOpenFile ? `### Currently Open: \`${currentFile.name}\`
 ${currentFile.content ? `
 \`\`\`
-${currentFile.content.slice(0, 10000)}
+${numberLines(currentFile.content.slice(0, 10000))}
 \`\`\`
 ` : '*(Content not loaded)*'}
 ` : `### No Document Open`}
@@ -212,7 +210,7 @@ ${memory ? `### Memory
 1. Analyze the Request.
 2. If it requires creative writing/editing -> Call \`consult_writer\`.
 3. If it requires file ops -> Call \`fs_*\` tools.
-4. Once you have the text from the Writer, apply it using \`suggest_edit\` (if changing text) or \`insert_text\` (if adding new text).
+4. Once you have the text from the Writer, apply it using \`suggest_edit\` (if changing text) or \`suggest_insertion\` (if adding new text).
 `;
 }
 

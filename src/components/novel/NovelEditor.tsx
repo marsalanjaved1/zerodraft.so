@@ -21,7 +21,7 @@ import { EditorToolbar } from "./editor-toolbar";
 import { SearchBar } from "@/components/SearchBar";
 import { useEditorSearch } from "@/lib/hooks/use-editor-search";
 import { useGhostText } from "@/lib/hooks/use-ghost-text";
-import { findBestMatch, normalizeText } from "@/lib/utils/fuzzy-match";
+
 
 export interface EditorActions {
     undo: () => void;
@@ -34,8 +34,8 @@ export interface EditorActions {
     getText: () => string;
     getWordCount: () => { words: number; characters: number };
     insertText: (text: string) => void;
-    applyInlineChange: (original: string, suggested: string, changeId: string) => boolean | string;
-    applyInlineInsertion?: (insertionPoint: string, textToInsert: string) => boolean | string;
+    applyInlineChange: (startLine: number, endLine: number, replacementText: string, expectedText: string | undefined, changeId: string) => boolean | string;
+    applyInlineInsertion?: (afterLine: number, textToInsert: string) => boolean | string;
 }
 
 interface NovelEditorProps {
@@ -46,7 +46,7 @@ interface NovelEditorProps {
     onFileImport?: (name: string, content: string) => void;
     enableGhostText?: boolean;
     ghostTextModel?: string;
-    onSuggestEdit?: (change: { original: string; suggested: string; reason?: string }) => void;
+    onSuggestEdit?: (change: { startLine: number; endLine: number; replacementText: string; expectedText?: string; reason?: string }) => void;
 }
 
 export function NovelEditor({
@@ -151,123 +151,111 @@ export function NovelEditor({
 
 
 
-    // Apply inline tracked change to editor using styled markers
-    // Uses fuzzy matching to handle whitespace/formatting differences
-    const applyInlineChange = useCallback((original: string, suggested: string, changeId: string): boolean | string => {
-        if (!editorInstance) {
-            return "RETRY: No document is open. Open the document first, then try the edit again. Do not mention this to the user — just open the file and retry.";
-        }
-
-        // Get complete document text for fuzzy matching
+    // Helper to map line numbers to ProseMirror positions.
+    // CRITICAL: must count lines the SAME way the backend's numberLines() does:
+    //   content.split('\n') — every newline-delimited substring is a "line".
+    // We extract the editor's markdown, split by \n, then map character offsets
+    // back to ProseMirror doc positions.
+    const lineRangeToProseMirrorPos = useCallback((startLine: number, endLine: number) => {
+        if (!editorInstance) return null;
         const { doc } = editorInstance.state;
-        let fullText = '';
-        const nodePositions: { start: number; end: number; textStart: number }[] = [];
+
+        // Get markdown text (same format the backend sees via editorContent)
+        const markdown: string = (editorInstance.storage as any).markdown?.getMarkdown() || editorInstance.getText();
+        const lines = markdown.split('\n');
+
+        if (startLine < 1 || endLine > lines.length || startLine > endLine) return null;
+
+        // Instead of complex character-offset-to-PM-pos mapping, 
+        // use textblock approach: each textblock node is one "content line" 
+        // in the ProseMirror doc. But blank markdown lines don't have textblocks.
+        // So we map: for each non-blank markdown line, there's a textblock.
+        // For blank lines, they exist between textblocks.
+
+        // Simplest robust approach: walk textblock nodes and build a bidirectional map
+        // between markdown line indices and textblock positions.
+        type LineInfo = { from: number; to: number };
+        const textblocks: LineInfo[] = [];
 
         doc.descendants((node, pos) => {
-            if (node.isText && node.text) {
-                nodePositions.push({
-                    start: pos,
-                    end: pos + node.text.length,
-                    textStart: fullText.length
-                });
-                fullText += node.text;
+            if (node.isTextblock) {
+                textblocks.push({ from: pos, to: pos + node.nodeSize });
+                return false;
             }
+            return true;
         });
 
-        // Strip HTML tags if original looks like HTML
-        let searchOriginal = original;
-
-        // Strip Markdown syntax to match plain text in editor
-        // Remove Headers
-        searchOriginal = searchOriginal.replace(/^#{1,6}\s+/gm, '');
-        // Remove Blockquotes
-        searchOriginal = searchOriginal.replace(/^>\s+/gm, '');
-        // Remove Checkboxes
-        searchOriginal = searchOriginal.replace(/^[-*]\s+\[[ xX]?\]\s+/gm, '');
-        // Remove List bullets
-        searchOriginal = searchOriginal.replace(/^[-*]\s+/gm, '');
-        // Remove Numbered lists
-        searchOriginal = searchOriginal.replace(/^\d+\.\s+/gm, '');
-        // Remove Links [text](url) -> text
-        searchOriginal = searchOriginal.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-        // Remove Bold/Italic (**text**, *text*)
-        searchOriginal = searchOriginal.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
-        // Remove Inline code `text`
-        searchOriginal = searchOriginal.replace(/`([^`]+)`/g, '$1');
-
-        // Normalization: Collapse whitespace to single spaces for better matching
-        searchOriginal = searchOriginal.replace(/\s+/g, ' ').trim();
-
-        if (original.trim().startsWith('<') && original.includes('>')) {
-            try {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = original;
-                searchOriginal = tempDiv.textContent || original;
-                console.log("applyInlineChange: Stripped HTML:", original, "->", searchOriginal);
-            } catch (e) {
-                console.warn("applyInlineChange: Failed to strip HTML", e);
+        // Map markdown line numbers to textblock indices.
+        // Skip blank lines in markdown — they don't correspond to textblocks.
+        // Build: contentLineIndex[markdownLineNumber] = textblockIndex (or -1 for blank)
+        let textblockIdx = 0;
+        const lineToBlock: (number | null)[] = []; // 0-indexed markdown lines -> textblock index
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim() === '') {
+                lineToBlock.push(null); // blank line, no textblock
+            } else {
+                lineToBlock.push(textblockIdx < textblocks.length ? textblockIdx : null);
+                textblockIdx++;
             }
         }
 
-        // Use fuzzy matching to find the text
-        const match = findBestMatch(fullText, searchOriginal);
-
-        if (!match.found) {
-            return `RETRY: The text you provided does not exist in the document. Re-read the document content above, find the correct text, and try again. Do not mention this to the user — just silently retry with the right text.`;
-        }
-
-        console.log(`applyInlineChange: Found via ${match.matchType} (${Math.round(match.similarity * 100)}% similar):`,
-            `"${match.matchedText.slice(0, 50)}..."`);
-
-        // Map text position back to document position
-        let foundPos: number | null = null;
-        let foundEndPos: number | null = null;
-
-        for (const nodePos of nodePositions) {
-            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
-            if (match.startIndex >= nodePos.textStart && match.startIndex < nodeTextEnd) {
-                const offsetInNode = match.startIndex - nodePos.textStart;
-                foundPos = nodePos.start + offsetInNode;
-                foundEndPos = foundPos + match.matchedText.length;
-                break;
+        // Find the first and last non-blank lines in [startLine, endLine] range
+        let fromBlock: number | null = null;
+        let toBlock: number | null = null;
+        for (let i = startLine - 1; i <= endLine - 1; i++) {
+            const blockIdx = lineToBlock[i];
+            if (blockIdx !== null && blockIdx !== undefined) {
+                if (fromBlock === null) fromBlock = blockIdx;
+                toBlock = blockIdx;
             }
         }
 
-        if (foundPos === null || foundEndPos === null) {
-            return "RETRY: Could not locate the text position. The document may have changed. Re-read the document and try again. Do not mention this to the user.";
+        if (fromBlock === null || toBlock === null) return null;
+        if (fromBlock >= textblocks.length || toBlock >= textblocks.length) return null;
+
+        return { from: textblocks[fromBlock].from, to: textblocks[toBlock].to };
+    }, [editorInstance]);
+
+
+    // Apply inline tracked change using line numbers
+    const applyInlineChange = useCallback((startLine: number, endLine: number, replacementText: string, expectedText: string | undefined, changeId: string): boolean | string => {
+        if (!editorInstance) {
+            return "FILE_NOT_OPEN: No document is open. Open the document first.";
         }
 
-        // SAFETY: For live editor edits, only allow exact and normalized matches.
-        // Fuzzy matches are too risky — they could target the wrong text.
-        if (match.matchType === 'fuzzy') {
-            return `RETRY: The text was close but not exact enough. The closest text in the document is: "${match.matchedText.slice(0, 120)}". Copy this exact text and use it as the original_text. Do not mention this to the user.`;
+        const pos = lineRangeToProseMirrorPos(startLine, endLine);
+        if (!pos) {
+            return `INVALID_RANGE: Lines ${startLine}-${endLine} are out of range. The document might have fewer lines than you think.`;
         }
 
-        // For normalized matches, verify content integrity (whitespace-only differences)
-        const foundText = fullText.slice(match.startIndex, match.endIndex);
-        const normalizedFound = normalizeText(foundText);
-        const normalizedSearch = normalizeText(searchOriginal);
+        // Safety check: verify content hasn't drifted
+        if (expectedText) {
+            const actual = editorInstance.state.doc.textBetween(pos.from, pos.to, '\n');
+            const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+            // We check if the actual text roughly matches expected. 
+            // We use inclusive check because 'actual' might contain block markup/newlines that 'expected' doesn't.
+            // Or exact match?
+            // Let's iterate: if the normalized expected text isn't found in normalized actual, warn.
+            const normActual = normalize(actual);
+            const normExpected = normalize(expectedText);
 
-        if (normalizedFound !== normalizedSearch) {
-            return `RETRY: The document has changed since you last saw it. Re-read the document and try again with the current text. Do not mention this to the user.`;
+            // Allow for some leniency, e.g. if the user provided just the text content but we grabbed block content
+            if (!normActual.includes(normExpected) && !normExpected.includes(normActual)) {
+                return `STALE: Document content has changed. Lines ${startLine}-${endLine} now contain: "${actual.slice(0, 100)}...". Re-read the document and retry.`;
+            }
         }
 
-        console.log("applyInlineChange: Found text at position", foundPos, "to", foundEndPos);
+        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(replacementText) || replacementText;
 
-        // Convert suggested text from Markdown to HTML for rendering
-        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(suggested) || suggested;
-        console.log("applyInlineChange: Converted suggested text to HTML:", suggestedHtml);
-
-        // Replace the original text with the inlineDiff node
         try {
             editorInstance
                 .chain()
                 .focus()
-                .deleteRange({ from: foundPos, to: foundEndPos })
-                .insertContentAt(foundPos, {
+                .deleteRange({ from: pos.from, to: pos.to })
+                .insertContentAt(pos.from, {
                     type: "inlineDiff",
                     attrs: {
-                        original,
+                        original: expectedText || "", // We use expectedText as the "original" to show in diff
                         suggested: suggestedHtml,
                         changeId,
                     }
@@ -276,141 +264,51 @@ export function NovelEditor({
 
             return true;
         } catch (error: any) {
-            return `Edit failed: ${error.message || 'Unknown error applying change'}`;
+            return `Edit failed: ${error.message}`;
         }
-    }, [editorInstance]);
+    }, [editorInstance, lineRangeToProseMirrorPos]);
 
-    // Apply inline insertion (green text only)
-    const applyInlineInsertion = useCallback((insertionPoint: string, textToInsert: string): boolean | string => {
-        if (!editorInstance) {
-            return "RETRY: No document is open.";
-        }
+    // Apply inline insertion using line numbers
+    const applyInlineInsertion = useCallback((afterLine: number, textToInsert: string): boolean | string => {
+        if (!editorInstance) return "FILE_NOT_OPEN: No document is open.";
 
-        // Get complete document text for fuzzy matching
-        const { doc } = editorInstance.state;
-        let fullText = '';
-        const nodePositions: { start: number; end: number; textStart: number }[] = [];
+        let insertPos = 0;
 
-        doc.descendants((node, pos) => {
-            if (node.isText && node.text) {
-                nodePositions.push({
-                    start: pos,
-                    end: pos + node.text.length,
-                    textStart: fullText.length
-                });
-                fullText += node.text;
-            }
-        });
-
-        // Strip HTML tags/Markdown from insertionPoint to match plain text
-        let searchOriginal = insertionPoint;
-
-        // Use same stripping logic as applyInlineChange
-        searchOriginal = searchOriginal.replace(/^#{1,6}\s+/gm, '');
-        searchOriginal = searchOriginal.replace(/^>\s+/gm, '');
-        searchOriginal = searchOriginal.replace(/^[-*]\s+\[[ xX]?\]\s+/gm, '');
-        searchOriginal = searchOriginal.replace(/^[-*]\s+/gm, '');
-        searchOriginal = searchOriginal.replace(/^\d+\.\s+/gm, '');
-        searchOriginal = searchOriginal.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-        searchOriginal = searchOriginal.replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1');
-        searchOriginal = searchOriginal.replace(/`([^`]+)`/g, '$1');
-        searchOriginal = searchOriginal.replace(/\s+/g, ' ').trim();
-
-        if (insertionPoint.trim().startsWith('<') && insertionPoint.includes('>')) {
-            try {
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = insertionPoint;
-                searchOriginal = tempDiv.textContent || insertionPoint;
-            } catch (e) { }
+        if (afterLine === 0) {
+            // Insert at top of document
+            insertPos = 0;
+        } else {
+            // We want to insert AFTER line X. So we find the range of line X, and take the position "to".
+            const pos = lineRangeToProseMirrorPos(afterLine, afterLine);
+            if (!pos) return `INVALID_RANGE: Line ${afterLine} does not exist.`;
+            insertPos = pos.to;
         }
 
-        // Use fuzzy matching to find the insertion point
-        const match = findBestMatch(fullText, searchOriginal);
-
-        if (!match.found) {
-            return `RETRY: Could not find the insertion point text "${insertionPoint.slice(0, 50)}...". Please assume the document content might have minor differences and try a smaller, more unique snippet to locate the insertion point.`;
-        }
-
-        // Map text position back to document position
-        let foundEndPos: number | null = null;
-
-        for (const nodePos of nodePositions) {
-            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
-            if (match.startIndex >= nodePos.textStart && match.startIndex < nodeTextEnd) {
-                // We want the END of the match
-                const offsetInNode = (match.startIndex + match.matchedText.length) - nodePos.textStart;
-                // Check if match spans multiple nodes?
-                // findBestMatch returns flattened index.
-                // Simplified lookup for end position:
-                // Find node containing the END of the match
-                // Actually loop again/continue?
-            }
-        }
-
-        // Robust position mapping
-        let currentPos = 0;
-        let matchEndInDoc = -1;
-
-        // Re-traverse to find exact end position
-        // This is slightly inefficient but safe
-        // Actually, let's use the nodePositions mapping cleanly
-        const matchEndIndex = match.startIndex + match.matchedText.length;
-
-        for (const nodePos of nodePositions) {
-            const nodeTextEnd = nodePos.textStart + (nodePos.end - nodePos.start);
-            if (matchEndIndex > nodePos.textStart && matchEndIndex <= nodeTextEnd) {
-                const offset = matchEndIndex - nodePos.textStart;
-                foundEndPos = nodePos.start + offset;
-                break;
-            }
-        }
-
-        // If matchEndIndex is exactly at the end of a node, foundEndPos is correct.
-
-        if (foundEndPos === null) {
-            // Fallback: match likely end of document or miscalculated
-            // If match is at very end
-            if (matchEndIndex >= fullText.length) {
-                const lastNode = nodePositions[nodePositions.length - 1];
-                foundEndPos = lastNode.end;
-            } else {
-                return "RETRY: Could not map insertion position.";
-            }
-        }
-
-        // Convert suggested text
         const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(textToInsert) || textToInsert;
 
         try {
-            // Insert AFTER the found text. 
-            // We usually want to insert a space or newline? 
-            // The tool is "suggest_edit" style, so we insert the InlineDiff node.
-
-            // If we are inserting a Block (like a list item), we might need a newline char separating it?
-            // "Wake up" -> foundEndPos.
-            // Insert "\n" + InlineDiff?
-            // If I insert InlineDiff directly, it appends to the text node "Wake up[DIFF]".
-
-            // Let's blindly insert at foundEndPos. The `suggestedHtml` usually contains the formatting.
-
             editorInstance
                 .chain()
                 .focus()
-                .insertContentAt(foundEndPos, {
+                .insertContentAt(insertPos, {
                     type: "inlineDiff",
                     attrs: {
-                        original: "", // Empty original = insertion
+                        original: "",
                         suggested: suggestedHtml,
                         changeId: `insert-${Date.now()}`,
                     }
                 })
+                // Maybe insert a newline after if it's a block insertion? 
+                // The InlineDiff is inline, but if the content is block-like, simple insertion might merge.
+                // Ideally we'd insert a paragraph break if appending to a paragraph?
+                // But let's trust ProseMirror schema to handle insertion validity or the HTML content.
                 .run();
 
             return true;
         } catch (error: any) {
             return `Insertion failed: ${error.message}`;
         }
-    }, [editorInstance]);
+    }, [editorInstance, lineRangeToProseMirrorPos]);
 
     const {
         query: searchQuery,
@@ -473,7 +371,7 @@ export function NovelEditor({
             };
             onEditorReady(actions);
         }
-    }, [editorInstance, onEditorReady]);
+    }, [editorInstance, onEditorReady, applyInlineChange, applyInlineInsertion]);
 
     const lastFileIdRef = useRef<string | null>(null);
 

@@ -63,7 +63,7 @@ interface AgentPanelProps {
     editorContent?: string;
     chatSessionId?: string;
     onApplyDiff?: (diff: { removed: string; added: string; position: number }) => void;
-    onSuggestInsertion?: (change: { insertionPoint: string; textToInsert: string; reason?: string }) => string;
+    onSuggestInsertion?: (change: { afterLine: number; textToInsert: string; reason?: string }) => string;
     onRefreshFiles?: () => void;
     onOpenFile?: (fileId: string) => void;
     onClose?: () => void;
@@ -265,13 +265,22 @@ export function AgentPanel({
                 return "Replace action queued - no handler available.";
             }
             case "suggest_edit": {
-                if (args.original_text && args.suggested_text) {
+                if (!selectedFile) {
+                    return "FILE_NOT_OPEN: No file is currently open in the editor. You must use 'open_file_in_editor' first.";
+                }
+
+                if (args.start_line && args.end_line && args.replacement_text) {
                     // Apply inline diff in editor and get result
                     if (onSuggestEdit) {
                         const result = onSuggestEdit({
                             id: `change-${Date.now()}`,
-                            original: args.original_text,
-                            suggested: args.suggested_text,
+                            startLine: args.start_line,
+                            endLine: args.end_line,
+                            replacementText: args.replacement_text,
+                            expectedText: args.expected_text,
+                            // Populate legacy fields for compatibility
+                            original: args.expected_text || `(Line ${args.start_line}-${args.end_line})`,
+                            suggested: args.replacement_text,
                             reason: args.reason,
                             status: 'pending',
                             createdAt: new Date()
@@ -280,21 +289,25 @@ export function AgentPanel({
                     }
                     return "Suggest edit action queued - no handler available.";
                 }
-                return "Suggest edit action failed - missing original_text or suggested_text.";
+                return "Suggest edit action failed - missing start_line, end_line, or replacement_text.";
             }
 
             case "suggest_insertion": {
-                if (args.insertion_point && args.text_to_insert) {
+                if (!selectedFile) {
+                    return "FILE_NOT_OPEN: No file is currently open in the editor. You must use 'open_file_in_editor' first.";
+                }
+
+                if (args.after_line !== undefined && args.text_to_insert) {
                     if (onSuggestInsertion) {
                         return onSuggestInsertion({
-                            insertionPoint: args.insertion_point,
+                            afterLine: args.after_line,
                             textToInsert: args.text_to_insert,
                             reason: args.reason
                         });
                     }
                     return "Suggest insertion action queued - no handler available.";
                 }
-                return "Suggest insertion action failed - missing args.";
+                return "Suggest insertion action failed - missing after_line or text_to_insert.";
             }
 
             case "get_selection": {
@@ -536,19 +549,14 @@ export function AgentPanel({
                                     overrideContent = editorContent;
                                 }
 
-                                // 🛡️ GUARDRAIL: Prevent direct updates to OPEN files
-                                if (toolCall.name === "fs_update_file" && selectedFile && (args.path === selectedFile.path || args.path === selectedFile.name)) {
-                                    // REJECT the tool call, forcing the agent to self-correct
-                                    updateToolStatus("error", "Error: This file is currently open in the editor. You must use 'suggest_edit' to propose changes to the active user session.");
-                                    continue; // Skip execution
-                                }
+
 
                                 // Execute Server-Side File System Tool
                                 const result = await executeFileSystemTool(workspaceId, toolCall.name, args, overrideContent);
                                 updateToolStatus("completed", result);
 
-                                // Refresh sidebar after file creation/write/update operations
-                                if ((toolCall.name === "fs_write_file" || toolCall.name === "fs_update_file") &&
+                                // Refresh sidebar after file creation/write operations
+                                if (toolCall.name === "fs_write_file" &&
                                     result && !result.includes("Error")) {
                                     onRefreshFiles?.();
                                 }
@@ -1083,7 +1091,7 @@ function getToolDisplayName(name: string): string {
         "fs_read_file": "Reading document",
         "fs_list_directory": "Browsing files",
         "fs_write_file": "Creating document",
-        "fs_update_file": "Updating document",
+        // fs_update_file removed
         "search_files": "Searching",
         "web_search": "Searching the web",
         "insert_text": "Adding text",
@@ -1101,13 +1109,10 @@ function formatToolArgs(name: string, args: string): string {
         if (name === "fs_read_file") return parsed.path;
         if (name === "fs_list_directory") return parsed.path || "/";
         if (name === "fs_write_file") return parsed.path;
-        if (name === "fs_update_file") return parsed.path;
+        // fs_update_file removed
         if (name === "search_files") return `"${parsed.query}"`;
-        if (name === "suggest_edit" && parsed.original_text && parsed.suggested_text) {
-            const orig = parsed.original_text.slice(0, 30);
-            const sugg = parsed.suggested_text.slice(0, 30);
-            return `"${orig}${parsed.original_text.length > 30 ? '…' : ''}" → "${sugg}${parsed.suggested_text.length > 30 ? '…' : ''}"`;
-        }
+        if (name === "suggest_edit") return `Lines ${parsed.start_line}-${parsed.end_line}`;
+        if (name === "suggest_insertion") return `After line ${parsed.after_line}`;
         if (name === "add_comment") return parsed.comment?.slice(0, 50) || "";
         if (name === "open_file_in_editor") return parsed.filename;
         if (name === "insert_text") return parsed.text?.slice(0, 50) || "";

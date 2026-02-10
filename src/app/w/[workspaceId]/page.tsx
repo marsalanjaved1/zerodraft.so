@@ -13,6 +13,7 @@ import type { EditorActions } from "@/components/novel";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { buildFileTree } from "@/lib/utils/file-tree";
+import { useTrackedChanges, TrackedChange } from "@/lib/hooks/use-tracked-changes";
 import { createDocument, updateDocumentContent, renameDocument, deleteDocument, moveDocument, importDocument, getWorkspace, renameWorkspace } from "./actions";
 import { uploadFile } from "@/lib/storage";
 import { useAutosave, type SaveStatus } from "@/lib/hooks/use-autosave";
@@ -236,33 +237,44 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
         }
     }, [editorActions]);
 
-    const handleSuggestEdit = useCallback((change: { id: string; original: string; suggested: string; reason?: string }): string => {
+    const handleSuggestEdit = useCallback((change: TrackedChange): string => {
         const actions = editorActionsRef.current;
         // Apply inline tracked change in editor
         if (actions) {
-            const result = actions.applyInlineChange(change.original, change.suggested, change.id);
-            if (result === true) {
-                return `Applied inline change: ~~"${change.original.slice(0, 30)}..."~~ → "${change.suggested.slice(0, 30)}..."`;
-            } else if (typeof result === 'string') {
-                return result; // Error message from applyInlineChange
+            if (change.startLine !== undefined && change.endLine !== undefined && change.replacementText !== undefined) {
+                const result = actions.applyInlineChange(
+                    change.startLine,
+                    change.endLine,
+                    change.replacementText,
+                    change.expectedText,
+                    change.id
+                );
+
+                if (result === true) {
+                    return `Applied inline change to lines ${change.startLine}-${change.endLine}`;
+                } else if (typeof result === 'string') {
+                    return result;
+                } else {
+                    return "Edit failed: Unknown error.";
+                }
             } else {
-                return `Edit failed: Could not find "${change.original.slice(0, 50)}..." in the document. Try reading the file first.`;
+                return "Edit failed: Missing line information (startLine/endLine).";
             }
         } else {
             return "Edit failed: No editor available. Please open a file first.";
         }
     }, []); // No dependencies - uses ref for current value
 
-    const handleSuggestInsertion = useCallback((change: { insertionPoint: string; textToInsert: string; reason?: string }): string => {
+    const handleSuggestInsertion = useCallback((change: { afterLine: number; textToInsert: string; reason?: string }): string => {
         const actions = editorActionsRef.current;
         if (actions && actions.applyInlineInsertion) {
-            const result = actions.applyInlineInsertion(change.insertionPoint, change.textToInsert);
+            const result = actions.applyInlineInsertion(change.afterLine, change.textToInsert);
             if (result === true) {
-                return `Applied suggested insertion: Added "${change.textToInsert.slice(0, 30)}..." after "${change.insertionPoint.slice(0, 30)}..."`;
+                return `Applied suggested insertion after line ${change.afterLine}`;
             } else if (typeof result === 'string') {
                 return result;
             } else {
-                return `Insertion failed: Could not find insertion point "${change.insertionPoint.slice(0, 50)}..." in the document.`;
+                return "Insertion failed.";
             }
         } else {
             return "Edit failed: No editor available. Please open a file first.";
