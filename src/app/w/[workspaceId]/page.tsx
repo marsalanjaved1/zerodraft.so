@@ -239,42 +239,19 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
 
     const handleSuggestEdit = useCallback((change: TrackedChange): string => {
         const actions = editorActionsRef.current;
-        // Apply inline tracked change in editor
         if (actions) {
-            if (change.startLine !== undefined && change.endLine !== undefined && change.replacementText !== undefined) {
-                const result = actions.applyInlineChange(
-                    change.startLine,
-                    change.endLine,
-                    change.replacementText,
-                    change.expectedText,
-                    change.id
-                );
+            const result = actions.applySuggestChange(
+                change.searchText,
+                change.replacementText,
+                change.id
+            );
 
-                if (result === true) {
-                    return `Applied inline change to lines ${change.startLine}-${change.endLine}`;
-                } else if (typeof result === 'string') {
-                    return result;
-                } else {
-                    return "Edit failed: Unknown error.";
-                }
-            } else {
-                return "Edit failed: Missing line information (startLine/endLine).";
-            }
-        } else {
-            return "Edit failed: No editor available. Please open a file first.";
-        }
-    }, []); // No dependencies - uses ref for current value
-
-    const handleSuggestInsertion = useCallback((change: { afterLine: number; textToInsert: string; reason?: string }): string => {
-        const actions = editorActionsRef.current;
-        if (actions && actions.applyInlineInsertion) {
-            const result = actions.applyInlineInsertion(change.afterLine, change.textToInsert);
             if (result === true) {
-                return `Applied suggested insertion after line ${change.afterLine}`;
+                return `Applied suggested change successfully.`;
             } else if (typeof result === 'string') {
                 return result;
             } else {
-                return "Insertion failed.";
+                return "Edit failed: Unknown error.";
             }
         } else {
             return "Edit failed: No editor available. Please open a file first.";
@@ -396,7 +373,6 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     onInsertText={handleInsertText}
                     onReplaceSelection={handleReplaceSelection}
                     onSuggestEdit={handleSuggestEdit}
-                    onSuggestInsertion={handleSuggestInsertion}
                     workspaceId={workspaceId}
                     selectedFile={selectedFile}
                     editorContent={editorContent}

@@ -15,10 +15,10 @@ function TrackedChangeItem({ change, onAccept, onReject }: TrackedChangeItemProp
 
     return (
         <div className={`border rounded-lg mb-2 overflow-hidden transition-all ${change.status === "accepted"
-                ? "border-green-200 bg-green-50/50"
-                : change.status === "rejected"
-                    ? "border-red-200 bg-red-50/50 opacity-60"
-                    : "border-gray-200 bg-white"
+            ? "border-green-200 bg-green-50/50"
+            : change.status === "rejected"
+                ? "border-red-200 bg-red-50/50 opacity-60"
+                : "border-gray-200 bg-white"
             }`}>
             {/* Header */}
             <div
@@ -30,7 +30,7 @@ function TrackedChangeItem({ change, onAccept, onReject }: TrackedChangeItemProp
                         {change.status === "pending" ? "Suggestion" : change.status}
                     </span>
                     <span className="text-xs text-gray-400 truncate">
-                        "{change.original.slice(0, 30)}..." → "{change.suggested.slice(0, 30)}..."
+                        "{change.searchText.slice(0, 30)}..." → "{change.replacementText.slice(0, 30)}..."
                     </span>
                 </div>
 
@@ -73,11 +73,11 @@ function TrackedChangeItem({ change, onAccept, onReject }: TrackedChangeItemProp
                     <div className="space-y-2 mt-2">
                         <div className="bg-red-50 border border-red-200 rounded p-2">
                             <span className="text-xs font-medium text-red-600 block mb-1">Original:</span>
-                            <p className="text-sm text-red-800 line-through">{change.original}</p>
+                            <p className="text-sm text-red-800 line-through">{change.searchText || "(insertion)"}</p>
                         </div>
                         <div className="bg-green-50 border border-green-200 rounded p-2">
                             <span className="text-xs font-medium text-green-600 block mb-1">Suggested:</span>
-                            <p className="text-sm text-green-800">{change.suggested}</p>
+                            <p className="text-sm text-green-800">{change.replacementText || "(deletion)"}</p>
                         </div>
                     </div>
                 </div>

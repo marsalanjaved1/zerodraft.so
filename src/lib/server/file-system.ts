@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { fuzzyReplace } from "@/lib/utils/fuzzy-match";
+import { createSnapshot } from "@/lib/server/versioning";
 
 export interface FileNode {
     id: string;
@@ -141,6 +142,9 @@ export class FileSystem {
         }
 
         // Then update it
+        // Snapshot before edit (fire-and-forget)
+        createSnapshot(document.id, "Before file update").catch(() => { });
+
         const { error: updateError } = await supabase
             .from("documents")
             .update({ content: newContent })

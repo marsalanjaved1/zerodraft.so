@@ -4,18 +4,9 @@ import { useState, useCallback } from "react";
 
 export interface TrackedChange {
     id: string;
-    original: string;
-    suggested: string;
+    searchText: string;       // The text to find in the document
+    replacementText: string;  // The text to replace it with
     reason?: string;
-    // New fields for line-based editing
-    startLine?: number;
-    endLine?: number;
-    replacementText?: string; // Same as suggested, but keeping for clarity with new schema
-    expectedText?: string;    // Same as original, but as provided by LLM for verification
-    position?: {
-        from: number;
-        to: number;
-    };
     status: "pending" | "accepted" | "rejected";
     createdAt: Date;
 }

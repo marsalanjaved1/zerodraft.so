@@ -9,11 +9,9 @@ import {
     Placeholder,
     HighlightExtension,
 } from "novel";
-import { Color } from "@tiptap/extension-color";
-import { TextStyle } from "@tiptap/extension-text-style";
-import TextAlign from "@tiptap/extension-text-align";
 import { Markdown } from "tiptap-markdown";
-import { InlineDiff } from "./diff-extension";
+import { SuggestDeletion, SuggestInsertion, createSuggestChangePlugin } from "./extensions/suggest-change";
+import { Extension } from "@tiptap/core";
 
 // Placeholder configuration - using Novel's bundled version
 const placeholder = Placeholder.configure({
@@ -114,6 +112,14 @@ const highlight = HighlightExtension.configure({
 const underline = TiptapUnderline;
 
 // Export all extensions - all from Novel to avoid version conflicts
+// Wrapper extension to register the suggest-change ProseMirror plugin
+const SuggestChangePlugin = Extension.create({
+    name: "suggestChangePlugin",
+    addProseMirrorPlugins() {
+        return [createSuggestChangePlugin()];
+    },
+});
+
 export const defaultExtensions = [
     starterKit,
     placeholder,
@@ -124,11 +130,12 @@ export const defaultExtensions = [
     horizontalRule,
     highlight,
     underline,
-    InlineDiff as any,
-    Color,
-    TextStyle,
-    TextAlign.configure({
-        types: ["heading", "paragraph"],
+    SuggestDeletion as any,
+    SuggestInsertion as any,
+    SuggestChangePlugin,
+    Markdown.configure({
+        html: true,
+        transformCopiedText: true,
+        transformPastedText: true,
     }),
-    Markdown,
 ];

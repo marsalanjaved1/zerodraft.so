@@ -34,8 +34,7 @@ export interface EditorActions {
     getText: () => string;
     getWordCount: () => { words: number; characters: number };
     insertText: (text: string) => void;
-    applyInlineChange: (startLine: number, endLine: number, replacementText: string, expectedText: string | undefined, changeId: string) => boolean | string;
-    applyInlineInsertion?: (afterLine: number, textToInsert: string) => boolean | string;
+    applySuggestChange: (searchText: string, replacementText: string, changeId: string) => boolean | string;
 }
 
 interface NovelEditorProps {
@@ -46,7 +45,6 @@ interface NovelEditorProps {
     onFileImport?: (name: string, content: string) => void;
     enableGhostText?: boolean;
     ghostTextModel?: string;
-    onSuggestEdit?: (change: { startLine: number; endLine: number; replacementText: string; expectedText?: string; reason?: string }) => void;
 }
 
 export function NovelEditor({
@@ -57,7 +55,6 @@ export function NovelEditor({
     onFileImport,
     enableGhostText = false,
     ghostTextModel = "anthropic/claude-haiku-4.5",
-    onSuggestEdit
 }: NovelEditorProps) {
     const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
     const [openNode, setOpenNode] = useState(false);
@@ -151,164 +148,184 @@ export function NovelEditor({
 
 
 
-    // Helper to map line numbers to ProseMirror positions.
-    // CRITICAL: must count lines the SAME way the backend's numberLines() does:
-    //   content.split('\n') — every newline-delimited substring is a "line".
-    // We extract the editor's markdown, split by \n, then map character offsets
-    // back to ProseMirror doc positions.
-    const lineRangeToProseMirrorPos = useCallback((startLine: number, endLine: number) => {
-        if (!editorInstance) return null;
-        const { doc } = editorInstance.state;
-
-        // Get markdown text (same format the backend sees via editorContent)
-        const markdown: string = (editorInstance.storage as any).markdown?.getMarkdown() || editorInstance.getText();
-        const lines = markdown.split('\n');
-
-        if (startLine < 1 || endLine > lines.length || startLine > endLine) return null;
-
-        // Instead of complex character-offset-to-PM-pos mapping, 
-        // use textblock approach: each textblock node is one "content line" 
-        // in the ProseMirror doc. But blank markdown lines don't have textblocks.
-        // So we map: for each non-blank markdown line, there's a textblock.
-        // For blank lines, they exist between textblocks.
-
-        // Simplest robust approach: walk textblock nodes and build a bidirectional map
-        // between markdown line indices and textblock positions.
-        type LineInfo = { from: number; to: number };
-        const textblocks: LineInfo[] = [];
-
-        doc.descendants((node, pos) => {
-            if (node.isTextblock) {
-                textblocks.push({ from: pos, to: pos + node.nodeSize });
-                return false;
-            }
-            return true;
-        });
-
-        // Map markdown line numbers to textblock indices.
-        // Skip blank lines in markdown — they don't correspond to textblocks.
-        // Build: contentLineIndex[markdownLineNumber] = textblockIndex (or -1 for blank)
-        let textblockIdx = 0;
-        const lineToBlock: (number | null)[] = []; // 0-indexed markdown lines -> textblock index
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i].trim() === '') {
-                lineToBlock.push(null); // blank line, no textblock
-            } else {
-                lineToBlock.push(textblockIdx < textblocks.length ? textblockIdx : null);
-                textblockIdx++;
-            }
-        }
-
-        // Find the first and last non-blank lines in [startLine, endLine] range
-        let fromBlock: number | null = null;
-        let toBlock: number | null = null;
-        for (let i = startLine - 1; i <= endLine - 1; i++) {
-            const blockIdx = lineToBlock[i];
-            if (blockIdx !== null && blockIdx !== undefined) {
-                if (fromBlock === null) fromBlock = blockIdx;
-                toBlock = blockIdx;
-            }
-        }
-
-        if (fromBlock === null || toBlock === null) return null;
-        if (fromBlock >= textblocks.length || toBlock >= textblocks.length) return null;
-
-        return { from: textblocks[fromBlock].from, to: textblocks[toBlock].to };
-    }, [editorInstance]);
-
-
-    // Apply inline tracked change using line numbers
-    const applyInlineChange = useCallback((startLine: number, endLine: number, replacementText: string, expectedText: string | undefined, changeId: string): boolean | string => {
+    // ─── Text-search-based suggest change ───────────────────────────────────
+    // Finds `searchText` in the ProseMirror document, applies deletion marks to it,
+    // then inserts `replacementText` with insertion marks right after.
+    const applySuggestChange = useCallback((searchText: string, replacementText: string, changeId: string): boolean | string => {
         if (!editorInstance) {
             return "FILE_NOT_OPEN: No document is open. Open the document first.";
         }
 
-        const pos = lineRangeToProseMirrorPos(startLine, endLine);
-        if (!pos) {
-            return `INVALID_RANGE: Lines ${startLine}-${endLine} are out of range. The document might have fewer lines than you think.`;
+        const { doc, schema, tr } = editorInstance.state;
+        const deletionMark = schema.marks.suggestDeletion;
+        const insertionMark = schema.marks.suggestInsertion;
+
+        if (!deletionMark || !insertionMark) {
+            return "EXTENSION_MISSING: Suggest change marks not registered.";
         }
 
-        // Safety check: verify content hasn't drifted
-        if (expectedText) {
-            const actual = editorInstance.state.doc.textBetween(pos.from, pos.to, '\n');
-            const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
-            // We check if the actual text roughly matches expected. 
-            // We use inclusive check because 'actual' might contain block markup/newlines that 'expected' doesn't.
-            // Or exact match?
-            // Let's iterate: if the normalized expected text isn't found in normalized actual, warn.
-            const normActual = normalize(actual);
-            const normExpected = normalize(expectedText);
+        // Pure insertion (no text to replace)
+        if (!searchText || searchText.trim() === "") {
+            // Insert at the end of the document
+            const endPos = doc.content.size;
+            const insertMark = insertionMark.create({ changeId });
+            const textNode = schema.text(replacementText, [insertMark]);
+            const insertTr = tr.insert(endPos - 1, textNode);
+            editorInstance.view.dispatch(insertTr);
+            return true;
+        }
 
-            // Allow for some leniency, e.g. if the user provided just the text content but we grabbed block content
-            if (!normActual.includes(normExpected) && !normExpected.includes(normActual)) {
-                return `STALE: Document content has changed. Lines ${startLine}-${endLine} now contain: "${actual.slice(0, 100)}...". Re-read the document and retry.`;
+        // Normalize search text for matching
+        const normalizeForSearch = (s: string) => s.replace(/\s+/g, ' ').trim();
+        const normalizedSearch = normalizeForSearch(searchText);
+
+        // Search through the document for the text
+        let matchFrom: number | null = null;
+        let matchTo: number | null = null;
+
+        // Walk all text content and try to find the search text
+        const docText = doc.textContent;
+        const normalizedDoc = normalizeForSearch(docText);
+        const searchIdx = normalizedDoc.indexOf(normalizedSearch);
+
+        if (searchIdx === -1) {
+            // Try a more lenient fuzzy match — look for a substring match
+            const words = normalizedSearch.split(' ').filter(w => w.length > 3);
+            if (words.length > 0) {
+                // Try matching using the first and last few words as anchors
+                const firstWords = words.slice(0, Math.min(3, words.length)).join(' ');
+                const altIdx = normalizedDoc.indexOf(firstWords);
+                if (altIdx === -1) {
+                    return `NOT_FOUND: Could not find the text "${searchText.slice(0, 80)}..." in the document. Please re-read the document and use the exact text.`;
+                }
+                // Partial match found - use it but warn
+            } else {
+                return `NOT_FOUND: Could not find the text "${searchText.slice(0, 80)}..." in the document. Please re-read the document and use the exact text.`;
             }
         }
 
-        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(replacementText) || replacementText;
+        // Map normalized character offset back to ProseMirror positions
+        // We need to walk the doc node by node, tracking text offsets
+        let charOffset = 0;
+        let foundFrom: number | null = null;
+        let foundTo: number | null = null;
+        const targetStart = searchIdx;
+        const targetEnd = searchIdx + normalizedSearch.length;
+
+        doc.descendants((node, pos) => {
+            if (foundFrom !== null && foundTo !== null) return false;
+            if (!node.isText) return;
+
+            const nodeText = node.textContent;
+            const nodeNormalized = normalizeForSearch(nodeText);
+
+            for (let i = 0; i < nodeNormalized.length; i++) {
+                const globalCharIdx = charOffset + i;
+
+                if (globalCharIdx === targetStart && foundFrom === null) {
+                    // Map back to the position in this text node
+                    // We need to find the actual character position, accounting for whitespace normalization
+                    let origCharCount = 0;
+                    let normCharCount = 0;
+                    for (let j = 0; j < nodeText.length; j++) {
+                        if (/\s/.test(nodeText[j])) {
+                            if (j === 0 || /\s/.test(nodeText[j - 1])) continue;
+                        }
+                        if (normCharCount === i) {
+                            foundFrom = pos + j;
+                            break;
+                        }
+                        normCharCount++;
+                    }
+                    if (foundFrom === null) foundFrom = pos;
+                }
+
+                if (globalCharIdx === targetEnd - 1 && foundFrom !== null) {
+                    let origCharCount = 0;
+                    let normCharCount = 0;
+                    for (let j = 0; j < nodeText.length; j++) {
+                        if (/\s/.test(nodeText[j])) {
+                            if (j === 0 || /\s/.test(nodeText[j - 1])) continue;
+                        }
+                        if (normCharCount === i) {
+                            foundTo = pos + j + 1;
+                            break;
+                        }
+                        normCharCount++;
+                    }
+                    if (foundTo === null) foundTo = pos + nodeText.length;
+                }
+            }
+
+            charOffset += nodeNormalized.length;
+        });
+
+        // Fallback: simpler position mapping if the above didn't work well
+        if (foundFrom === null || foundTo === null) {
+            // Simple approach: walk through text nodes, build up plain text, find offset
+            let plainOffset = 0;
+            const ranges: { pos: number; length: number; offset: number }[] = [];
+
+            doc.descendants((node, pos) => {
+                if (node.isText) {
+                    ranges.push({ pos, length: node.nodeSize, offset: plainOffset });
+                    plainOffset += node.textContent.length;
+                } else if (node.isBlock && ranges.length > 0) {
+                    plainOffset += 1; // account for block separator
+                }
+            });
+
+            // Find the search text in plain text
+            const plainText = doc.textBetween(0, doc.content.size, ' ');
+            const plainNorm = normalizeForSearch(plainText);
+            const plainIdx = plainNorm.indexOf(normalizedSearch);
+
+            if (plainIdx !== -1) {
+                // Map plain text offset to PM position
+                let accumulated = 0;
+                for (const range of ranges) {
+                    const rangeText = normalizeForSearch(doc.textBetween(range.pos, range.pos + range.length));
+                    if (accumulated + rangeText.length > plainIdx && foundFrom === null) {
+                        const localOffset = plainIdx - accumulated;
+                        foundFrom = range.pos + localOffset;
+                    }
+                    if (accumulated + rangeText.length >= plainIdx + normalizedSearch.length && foundTo === null) {
+                        const localOffset = plainIdx + normalizedSearch.length - accumulated;
+                        foundTo = range.pos + Math.min(localOffset, range.length);
+                    }
+                    accumulated += rangeText.length;
+                    if (foundFrom !== null && foundTo !== null) break;
+                }
+            }
+        }
+
+        if (foundFrom === null || foundTo === null) {
+            return `NOT_FOUND: Could not locate the text in the document. The text may have changed.`;
+        }
+
+        // Clamp positions to valid range
+        foundFrom = Math.max(0, foundFrom);
+        foundTo = Math.min(doc.content.size, foundTo);
 
         try {
-            editorInstance
-                .chain()
-                .focus()
-                .deleteRange({ from: pos.from, to: pos.to })
-                .insertContentAt(pos.from, {
-                    type: "inlineDiff",
-                    attrs: {
-                        original: expectedText || "", // We use expectedText as the "original" to show in diff
-                        suggested: suggestedHtml,
-                        changeId,
-                    }
-                })
-                .run();
+            // Apply deletion mark to the original text
+            const delMark = deletionMark.create({ changeId });
+            let newTr = editorInstance.state.tr;
+            newTr = newTr.addMark(foundFrom, foundTo, delMark);
 
+            // Insert new text with insertion mark right after
+            if (replacementText && replacementText.trim() !== "") {
+                const insMark = insertionMark.create({ changeId });
+                const newTextNode = schema.text(replacementText, [insMark]);
+                newTr = newTr.insert(foundTo, newTextNode);
+            }
+
+            editorInstance.view.dispatch(newTr);
             return true;
         } catch (error: any) {
             return `Edit failed: ${error.message}`;
         }
-    }, [editorInstance, lineRangeToProseMirrorPos]);
-
-    // Apply inline insertion using line numbers
-    const applyInlineInsertion = useCallback((afterLine: number, textToInsert: string): boolean | string => {
-        if (!editorInstance) return "FILE_NOT_OPEN: No document is open.";
-
-        let insertPos = 0;
-
-        if (afterLine === 0) {
-            // Insert at top of document
-            insertPos = 0;
-        } else {
-            // We want to insert AFTER line X. So we find the range of line X, and take the position "to".
-            const pos = lineRangeToProseMirrorPos(afterLine, afterLine);
-            if (!pos) return `INVALID_RANGE: Line ${afterLine} does not exist.`;
-            insertPos = pos.to;
-        }
-
-        const suggestedHtml = (editorInstance.storage as any).markdown?.parser.parse(textToInsert) || textToInsert;
-
-        try {
-            editorInstance
-                .chain()
-                .focus()
-                .insertContentAt(insertPos, {
-                    type: "inlineDiff",
-                    attrs: {
-                        original: "",
-                        suggested: suggestedHtml,
-                        changeId: `insert-${Date.now()}`,
-                    }
-                })
-                // Maybe insert a newline after if it's a block insertion? 
-                // The InlineDiff is inline, but if the content is block-like, simple insertion might merge.
-                // Ideally we'd insert a paragraph break if appending to a paragraph?
-                // But let's trust ProseMirror schema to handle insertion validity or the HTML content.
-                .run();
-
-            return true;
-        } catch (error: any) {
-            return `Insertion failed: ${error.message}`;
-        }
-    }, [editorInstance, lineRangeToProseMirrorPos]);
+    }, [editorInstance]);
 
     const {
         query: searchQuery,
@@ -366,12 +383,11 @@ export function NovelEditor({
                     const html = (editorInstance.storage as any).markdown?.parser.parse(text) || text;
                     editorInstance.chain().focus().insertContent(html).run();
                 },
-                applyInlineChange,
-                applyInlineInsertion,
+                applySuggestChange,
             };
             onEditorReady(actions);
         }
-    }, [editorInstance, onEditorReady, applyInlineChange, applyInlineInsertion]);
+    }, [editorInstance, onEditorReady, applySuggestChange]);
 
     const lastFileIdRef = useRef<string | null>(null);
 

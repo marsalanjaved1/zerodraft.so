@@ -5,7 +5,7 @@ import {
     Bot, User, ArrowUp, Loader2, Check, AlertCircle, X,
     FileText, FolderOpen, Search, PenLine, ChevronDown,
     Copy, FileDown, Sparkles, BookOpen, Square, Play, GitCompare, Target,
-    History, Plus, MessageSquare
+    History, Plus, MessageSquare, Globe, ChevronRight
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { FileNode } from "@/lib/types";
@@ -27,6 +27,7 @@ interface Message {
     id: string;
     role: "user" | "assistant" | "tool";
     content: string;
+    plan?: any;
     toolCalls?: ToolCall[];
     tool_call_id?: string;
     name?: string;
@@ -63,7 +64,6 @@ interface AgentPanelProps {
     editorContent?: string;
     chatSessionId?: string;
     onApplyDiff?: (diff: { removed: string; added: string; position: number }) => void;
-    onSuggestInsertion?: (change: { afterLine: number; textToInsert: string; reason?: string }) => string;
     onRefreshFiles?: () => void;
     onOpenFile?: (fileId: string) => void;
     onClose?: () => void;
@@ -106,7 +106,7 @@ const MODELS = [
 ];
 
 // Writing tool names (handled client-side)
-const WRITING_TOOLS = ["insert_text", "replace_selection", "suggest_edit", "suggest_insertion", "get_selection", "search_document", "open_file_in_editor"];
+const WRITING_TOOLS = ["insert_text", "replace_selection", "suggest_edit", "get_selection", "search_document", "open_file_in_editor"];
 
 function isWritingTool(toolName: string): boolean {
     return WRITING_TOOLS.includes(toolName);
@@ -119,7 +119,6 @@ export function AgentPanel({
     onInsertText,
     onReplaceSelection,
     onSuggestEdit,
-    onSuggestInsertion,
     workspaceId,
     selectedFile,
     editorContent,
@@ -131,9 +130,23 @@ export function AgentPanel({
 }: AgentPanelProps) {
     const supabase = createClient();
     const [messages, setMessages] = useState<Message[]>([]);
-    const [sessions, setSessions] = useState<ChatSession[]>([]);
-    const [currentSessionId, setCurrentSessionId] = useState<string | null>(chatSessionId || null);
     const [view, setView] = useState<'chat' | 'history'>('chat');
+    const [sessions, setSessions] = useState<ChatSession[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+    const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(true);
+    const [expandedPlans, setExpandedPlans] = useState<Record<string, boolean>>({});
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const togglePlan = (msgId: string) => {
+        setExpandedPlans(prev => ({ ...prev, [msgId]: !prev[msgId] }));
+    };
+
+    // Ref to always have the latest editor content (avoids closure staleness)
+    const editorContentRef = useRef(editorContent);
+    useEffect(() => {
+        editorContentRef.current = editorContent;
+    }, [editorContent]);
 
     // Load sessions on mount
     useEffect(() => {
@@ -219,6 +232,7 @@ export function AgentPanel({
     const [showMentionMenu, setShowMentionMenu] = useState(false);
     const [mentionQuery, setMentionQuery] = useState("");
 
+
     // Tracked changes management
     const {
         changes: trackedChanges,
@@ -230,7 +244,7 @@ export function AgentPanel({
         rejectAll: rejectAllChanges
     } = useTrackedChanges();
 
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -269,52 +283,28 @@ export function AgentPanel({
                     return "FILE_NOT_OPEN: No file is currently open in the editor. You must use 'open_file_in_editor' first.";
                 }
 
-                if (args.start_line && args.end_line && args.replacement_text) {
-                    // Apply inline diff in editor and get result
+                if (args.search_text !== undefined && args.replacement_text !== undefined) {
                     if (onSuggestEdit) {
                         const result = onSuggestEdit({
                             id: `change-${Date.now()}`,
-                            startLine: args.start_line,
-                            endLine: args.end_line,
-                            replacementText: args.replacement_text,
-                            expectedText: args.expected_text,
-                            // Populate legacy fields for compatibility
-                            original: args.expected_text || `(Line ${args.start_line}-${args.end_line})`,
-                            suggested: args.replacement_text,
+                            searchText: args.search_text || "",
+                            replacementText: args.replacement_text || "",
                             reason: args.reason,
                             status: 'pending',
                             createdAt: new Date()
                         });
-                        return result; // Propagate success/failure message to the agent
+                        return result;
                     }
                     return "Suggest edit action queued - no handler available.";
                 }
-                return "Suggest edit action failed - missing start_line, end_line, or replacement_text.";
-            }
-
-            case "suggest_insertion": {
-                if (!selectedFile) {
-                    return "FILE_NOT_OPEN: No file is currently open in the editor. You must use 'open_file_in_editor' first.";
-                }
-
-                if (args.after_line !== undefined && args.text_to_insert) {
-                    if (onSuggestInsertion) {
-                        return onSuggestInsertion({
-                            afterLine: args.after_line,
-                            textToInsert: args.text_to_insert,
-                            reason: args.reason
-                        });
-                    }
-                    return "Suggest insertion action queued - no handler available.";
-                }
-                return "Suggest insertion action failed - missing after_line or text_to_insert.";
+                return "Suggest edit action failed - missing search_text or replacement_text.";
             }
 
             case "get_selection": {
                 return "No text currently selected.";
             }
             case "search_document": {
-                const content = selectedFile?.content || "";
+                const content = editorContentRef.current || selectedFile?.content || "";
                 if (args.query && content.toLowerCase().includes(args.query.toLowerCase())) {
                     return `Found "${args.query}" in document.`;
                 }
@@ -346,7 +336,7 @@ export function AgentPanel({
             default:
                 return `Unknown writing tool: ${toolName}`;
         }
-    }, [onInsertText, onReplaceSelection, onSuggestEdit, onSuggestInsertion, selectedFile, currentFiles, onOpenFile]);
+    }, [onInsertText, onReplaceSelection, onSuggestEdit, selectedFile, currentFiles, onOpenFile]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -415,7 +405,8 @@ export function AgentPanel({
                             content: f.content?.slice(0, 3000)
                         })) : undefined,
                         toolResults: toolResults.length > 0 ? toolResults : undefined,
-                        memoryContext: agentMemory.length > 0 ? formatMemoryForPrompt(agentMemory) : undefined
+                        memoryContext: agentMemory.length > 0 ? formatMemoryForPrompt(agentMemory) : undefined,
+                        webSearchEnabled: isWebSearchEnabled
                     }),
                     signal: abortControllerRef.current?.signal
                 });
@@ -423,6 +414,8 @@ export function AgentPanel({
                 if (!response.ok) throw new Error("API request failed");
 
                 const contentType = response.headers.get("content-type") || "";
+
+                let streamedToolCalls: any = null;
 
                 // Handle SSE streaming response (final messages)
                 if (contentType.includes("text/event-stream")) {
@@ -464,6 +457,48 @@ export function AgentPanel({
                                             : m
                                     );
                                     onMessagesUpdate(currentMessages);
+                                } else if (event.type === "planning") {
+                                    // Update message with plan
+                                    currentMessages = currentMessages.map(m =>
+                                        m.id === assistantMessageId
+                                            ? { ...m, plan: event.plan }
+                                            : m
+                                    );
+                                    onMessagesUpdate(currentMessages);
+                                    // Auto-expand
+                                    setExpandedPlans(prev => ({ ...prev, [assistantMessageId]: true }));
+                                } else if (event.type === "tool_start") {
+                                    // Server started an internal tool - show it!
+                                    const toolCall: ToolCall = {
+                                        id: event.toolCallId || crypto.randomUUID(),
+                                        name: event.name,
+                                        arguments: JSON.stringify(event.args || {}),
+                                        status: "running"
+                                    };
+
+                                    currentMessages = currentMessages.map(m =>
+                                        m.id === assistantMessageId
+                                            ? { ...m, toolCalls: [...(m.toolCalls || []), toolCall] }
+                                            : m
+                                    );
+                                    onMessagesUpdate(currentMessages);
+                                } else if (event.type === "tool_result") {
+                                    // Server finished a tool
+                                    currentMessages = currentMessages.map(m =>
+                                        m.id === assistantMessageId
+                                            ? {
+                                                ...m,
+                                                toolCalls: m.toolCalls?.map(tc =>
+                                                    tc.id === event.toolCallId
+                                                        ? { ...tc, status: "completed", result: event.result }
+                                                        : tc
+                                                )
+                                            }
+                                            : m
+                                    );
+                                    onMessagesUpdate(currentMessages);
+                                } else if (event.type === "tool_calls") {
+                                    streamedToolCalls = event;
                                 } else if (event.type === "error") {
                                     accumulatedContent += `\n\nError: ${event.content}`;
                                     currentMessages = currentMessages.map(m =>
@@ -479,11 +514,16 @@ export function AgentPanel({
                             }
                         }
                     }
-                    break; // Exit agentic loop — final message is done
+
+                    // Only exit agentic loop if we didn't receive tool calls to execute
+                    if (!streamedToolCalls) break;
                 }
 
                 // Handle JSON response (tool calls or legacy messages)
-                const data = await response.json();
+                // Use streamed data if available, otherwise fetch JSON
+                const data = streamedToolCalls || (contentType.includes("application/json") ? await response.json() : null);
+
+                if (!data) break; // Should not happen usually
 
                 // Handle tool calls
                 if (data.type === "tool_calls" && data.toolCalls?.length > 0) {
@@ -536,29 +576,45 @@ export function AgentPanel({
                                 const result = executeWritingToolLocal(toolCall.name, args);
                                 updateToolStatus("completed", result);
                             } else if (toolCall.name.startsWith("fs_")) {
-                                // Check if reading current file to provide live content
-                                let overrideContent: string | undefined;
+                                // Check if this targets the currently open file
                                 const isCurrentFile = selectedFile && (
                                     args.path === selectedFile.path ||
                                     args.path === selectedFile.name ||
-                                    args.path.endsWith(`/${selectedFile.name}`)
+                                    args.path.endsWith(`/${selectedFile.name}`) ||
+                                    selectedFile.path?.endsWith(`/${args.path}`) ||
+                                    selectedFile.name?.toLowerCase() === args.path?.toLowerCase()
                                 );
 
+                                // READ: Always use in-memory content for the active file
                                 if (toolCall.name === "fs_read_file" && isCurrentFile) {
-                                    console.log("AgentPanel: Intercepting read for active file", selectedFile.name);
-                                    overrideContent = editorContent;
+                                    console.log("AgentPanel: Reading active file from memory", selectedFile!.name);
+                                    const liveContent = editorContentRef.current || "";
+                                    updateToolStatus("completed", liveContent);
                                 }
-
-
-
-                                // Execute Server-Side File System Tool
-                                const result = await executeFileSystemTool(workspaceId, toolCall.name, args, overrideContent);
-                                updateToolStatus("completed", result);
-
-                                // Refresh sidebar after file creation/write operations
-                                if (toolCall.name === "fs_write_file" &&
-                                    result && !result.includes("Error")) {
+                                // WRITE to active file: update in-memory first, DB sync async
+                                else if (toolCall.name === "fs_write_file" && isCurrentFile) {
+                                    console.log("AgentPanel: Writing to active file in-memory", selectedFile!.name);
+                                    // Update editor content in memory immediately
+                                    if (args.content) {
+                                        editorContentRef.current = args.content;
+                                    }
+                                    // Async DB sync (fire and forget)
+                                    executeFileSystemTool(workspaceId, toolCall.name, args).catch(
+                                        err => console.warn("Async DB sync failed:", err)
+                                    );
+                                    updateToolStatus("completed", `Wrote ${args.content?.length || 0} chars to ${selectedFile!.name}`);
                                     onRefreshFiles?.();
+                                }
+                                else {
+                                    // Non-active file: execute server-side as normal
+                                    const result = await executeFileSystemTool(workspaceId, toolCall.name, args);
+                                    updateToolStatus("completed", result);
+
+                                    // Refresh sidebar after file creation/write operations
+                                    if (toolCall.name === "fs_write_file" &&
+                                        result && !result.includes("Error")) {
+                                        onRefreshFiles?.();
+                                    }
                                 }
                             } else {
                                 // Legacy File system tool (client-side mocks or other tools)
@@ -831,6 +887,35 @@ export function AgentPanel({
                                 ) : (
                                     // Assistant message
                                     <div className="space-y-3">
+                                        {/* Plan Block */}
+                                        {message.plan && (
+                                            <div className="mb-3 bg-indigo-50 rounded-lg border border-indigo-100 overflow-hidden text-left">
+                                                <button
+                                                    onClick={() => togglePlan(message.id)}
+                                                    className="w-full px-3 py-2 flex items-center gap-2 hover:bg-indigo-100/50 transition-colors"
+                                                >
+                                                    <div className="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                                                        <Target className="w-3 h-3 text-indigo-600" />
+                                                    </div>
+                                                    <div className="flex-1 text-left min-w-0">
+                                                        <span className="font-semibold text-xs text-indigo-900 truncate block">
+                                                            {message.plan.intent}
+                                                        </span>
+                                                    </div>
+                                                    {expandedPlans[message.id] ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
+                                                </button>
+                                                {expandedPlans[message.id] && (
+                                                    <div className="px-3 py-2 border-t border-indigo-100 text-xs text-indigo-800 bg-indigo-50/50">
+                                                        <ol className="list-decimal pl-4 space-y-1">
+                                                            {message.plan.steps?.map((step: string, i: number) => (
+                                                                <li key={i}>{step}</li>
+                                                            ))}
+                                                        </ol>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {/* Tool calls */}
                                         {message.toolCalls?.map((toolCall) => (
                                             <div
@@ -1012,7 +1097,7 @@ export function AgentPanel({
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask AI to help write, edit, or research... (@ to add context)"
-                                className="w-full resize-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all min-h-[48px] max-h-[200px] overflow-y-auto"
+                                className="w-full resize-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-24 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-300 outline-none transition-all min-h-[48px] max-h-[200px] overflow-y-auto"
                                 rows={1}
                                 disabled={isExecuting}
                             />
@@ -1025,13 +1110,25 @@ export function AgentPanel({
                                     <Square className="w-3 h-3 fill-current" />
                                 </button>
                             ) : (
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={!input.trim() || isLoading}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <ArrowUp className="w-4 h-4" />
-                                </button>
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                    <button
+                                        onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isWebSearchEnabled
+                                            ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                            }`}
+                                        title={isWebSearchEnabled ? "Web Search Enabled" : "Web Search Disabled"}
+                                    >
+                                        <Globe className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={!input.trim() || isLoading}
+                                        className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <ArrowUp className="w-4 h-4" />
+                                    </button>
+                                </div>
                             )}
                         </div>
                         <p className="text-[10px] text-gray-400 mt-2 text-center">
@@ -1111,7 +1208,7 @@ function formatToolArgs(name: string, args: string): string {
         if (name === "fs_write_file") return parsed.path;
         // fs_update_file removed
         if (name === "search_files") return `"${parsed.query}"`;
-        if (name === "suggest_edit") return `Lines ${parsed.start_line}-${parsed.end_line}`;
+        if (name === "suggest_edit") return `Editing text`;
         if (name === "suggest_insertion") return `After line ${parsed.after_line}`;
         if (name === "add_comment") return parsed.comment?.slice(0, 50) || "";
         if (name === "open_file_in_editor") return parsed.filename;
