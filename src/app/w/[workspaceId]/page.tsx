@@ -6,7 +6,7 @@ import { FileExplorer } from "@/components/FileExplorer";
 import { StatusBar } from "@/components/StatusBar";
 import { FocusMode } from "@/components/FocusMode";
 import { AgentPanel } from "@/components/AgentPanel";
-import { exportToWord, exportToHtml, exportToMarkdown, exportToPlainText, exportToPdf } from "@/components/ExportDialog";
+import { ExportDialog, exportToWord, exportToHtml, exportToMarkdown, exportToPlainText, exportToPdf } from "@/components/ExportDialog";
 import dynamic from "next/dynamic";
 import { useState, useCallback, useEffect, use, useMemo, useRef } from "react";
 import type { EditorActions } from "@/components/novel";
@@ -53,6 +53,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [ghostTextEnabled, setGhostTextEnabled] = useState(true);
     const [uploadStatus, setUploadStatus] = useState<{ uploading: boolean; message: string }>({ uploading: false, message: '' });
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
     // Keep ref in sync with state
     useEffect(() => {
@@ -279,6 +280,7 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                 onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 onRenameWorkspace={handleWorkspaceRename}
                 onRenameDocument={selectedFile ? (newName) => handleRename(selectedFile.id, newName) : undefined}
+                onExport={selectedFile ? () => setIsExportDialogOpen(true) : undefined}
             />
 
             {/* Upload Progress Toast */}
@@ -396,6 +398,44 @@ export default function WorkspacePage({ params }: { params: Promise<{ workspaceI
                     }}
                 />
             </div>
+
+            {/* Export Dialog */}
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                filename={selectedFile?.name || "Untitled"}
+                onExport={(format) => {
+                    if (!editorActions && !editorContent) return;
+
+                    const filename = (selectedFile?.name || "Untitled").replace(/\.[^/.]+$/, "");
+
+                    switch (format) {
+                        case 'pdf':
+                            exportToPdf();
+                            break;
+                        case 'docx':
+                            if (editorActions) {
+                                exportToWord(editorActions.getHTML(), filename);
+                            }
+                            break;
+                        case 'html':
+                            if (editorActions) {
+                                exportToHtml(editorActions.getHTML(), filename);
+                            }
+                            break;
+                        case 'md':
+                            // Prefer markdown content if available, otherwise convert HTML
+                            // The editor content is usually markdown if it comes from the novel editor
+                            exportToMarkdown(editorContent || "", filename);
+                            break;
+                        case 'txt':
+                            if (editorActions) {
+                                exportToPlainText(editorActions.getText(), filename);
+                            }
+                            break;
+                    }
+                }}
+            />
 
             {/* Focus Mode Overlay */}
             <FocusMode

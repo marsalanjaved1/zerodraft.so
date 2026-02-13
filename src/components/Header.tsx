@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, ChevronRight, Share2, Edit2 } from "lucide-react";
+import { Menu, ChevronRight, Share2, Edit2, Download } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 
@@ -11,6 +11,7 @@ interface HeaderProps {
     isSaved?: boolean;
     onMenuClick?: () => void;
     onShare?: () => void;
+    onExport?: () => void;
     onRenameWorkspace?: (newName: string) => void;
     onRenameDocument?: (newName: string) => Promise<void>;
     userAvatar?: string;
@@ -23,6 +24,7 @@ export function Header({
     isSaved = true,
     onMenuClick,
     onShare,
+    onExport,
     onRenameWorkspace,
     onRenameDocument,
     userAvatar,
@@ -141,6 +143,17 @@ export function Header({
                     Share
                     <Share2 className="w-3.5 h-3.5" />
                 </button>
+
+                {onExport && (
+                    <button
+                        onClick={onExport}
+                        className="text-gray-500 hover:text-gray-900 text-xs font-medium px-3 py-1.5 rounded-md hover:bg-gray-50 transition-colors flex items-center gap-1.5 border border-transparent hover:border-gray-200"
+                        title="Export Document"
+                    >
+                        Export
+                        <Download className="w-3.5 h-3.5" />
+                    </button>
+                )}
 
                 {/* User Avatar */}
                 <div

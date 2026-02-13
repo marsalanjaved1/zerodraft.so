@@ -108,13 +108,14 @@ export function exportToPdf() {
 }
 
 export function exportToWord(html: string, filename: string) {
-    const blob = new Blob([`
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>${filename}</title></head>
-<body>${html}</body>
-</html>
-    `], { type: 'application/msword' });
+    const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML to Word Document with JavaScript</title></head><body>";
+    const postHtml = "</body></html>";
+    const htmlContent = preHtml + html + postHtml;
+
+    const blob = new Blob(['\ufeff', htmlContent], {
+        type: 'application/msword'
+    });
+
     downloadBlob(blob, `${filename}.doc`);
 }
 
@@ -131,6 +132,9 @@ export function exportToHtml(html: string, filename: string) {
         code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; }
         pre { background: #f4f4f4; padding: 16px; border-radius: 6px; overflow-x: auto; }
         blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 16px; color: #666; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>${html}</body>
@@ -140,36 +144,8 @@ export function exportToHtml(html: string, filename: string) {
     downloadBlob(blob, `${filename}.html`);
 }
 
-export function exportToMarkdown(html: string, filename: string) {
-    // Simple HTML to Markdown conversion
-    let md = html
-        .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
-        .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
-        .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
-        .replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
-        .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-        .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
-        .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-        .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
-        .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-        .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-        .replace(/<ul[^>]*>/gi, '\n')
-        .replace(/<\/ul>/gi, '\n')
-        .replace(/<ol[^>]*>/gi, '\n')
-        .replace(/<\/ol>/gi, '\n')
-        .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
-        .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
-        .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<[^>]+>/g, '') // Remove remaining tags
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/\n{3,}/g, '\n\n') // Normalize newlines
-        .trim();
-
-    const blob = new Blob([md], { type: 'text/markdown' });
+export function exportToMarkdown(markdownContent: string, filename: string) {
+    const blob = new Blob([markdownContent], { type: 'text/markdown' });
     downloadBlob(blob, `${filename}.md`);
 }
 

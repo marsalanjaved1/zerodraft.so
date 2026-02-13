@@ -1,29 +1,23 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import {
-
     Bot,
     Check,
     ChevronDown,
     ChevronRight,
-    FileText,
-    History,
     Loader2,
     Menu,
     Plus,
-    Search,
+    RotateCcw,
     Send,
     Settings,
     Share2,
     Sparkles,
-    RotateCcw,
-    Megaphone,
-    PieChart,
-    Scale,
-    Shield, // Assuming Shield is used for Security
-    Briefcase // Assuming Briefcase is used for PM
+    History,
+    BrainCircuit,
+    Lightbulb
 } from "lucide-react";
 
 
@@ -35,18 +29,20 @@ type FileSystemItem = {
     type: "file" | "folder";
     children?: FileSystemItem[];
     isOpen?: boolean;
+    icon?: "slack" | "jira" | "zoom" | "doc";
 };
 
 type ContentBlock = {
-    type: 'h1' | 'h2' | 'p' | 'ul' | 'table';
+    type: 'h1' | 'h2' | 'p' | 'ul' | 'table' | 'quote';
     content: string;
 };
 
 type ChatMessage = {
+    id: string;
     role: "user" | "assistant";
     content?: string;
+    isThinking?: boolean;
     toolCall?: {
-        id: string;
         name: string;
         args: string;
         status: "running" | "completed";
@@ -54,251 +50,186 @@ type ChatMessage = {
     };
 };
 
-type AnimationStep = "idle" | "typing_prompt" | "processing" | "generating" | "complete";
+type ActionType =
+    | { type: 'think'; content: string; duration: number }
+    | { type: 'tool_call'; name: string; args: object; resultSummary: string; duration: number }
+    // User message type to show agent commentary
+    | { type: 'agent_message'; content: string; duration: number }
+    | { type: 'open_file'; fileId: string; duration?: number }
+    | { type: 'create_file'; folderId: string; fileId: string; name: string; icon?: "doc"; duration?: number }
+    | { type: 'stream_content'; fileId: string; blocks: ContentBlock[]; append?: boolean }
 
-type ScenarioId = 'pm' | 'marketing' | 'finance' | 'legal' | 'rfp';
+type ScenarioId = 'pm';
 
 interface Scenario {
     id: ScenarioId;
     name: string;
-    icon: React.ElementType;
     description: string;
     initialFileId: string;
     files: FileSystemItem[];
-    initialBlocks: ContentBlock[];
+    fileContents: Record<string, ContentBlock[]>;
     promptText: string;
-    toolCall: {
-        name: string;
-        args: object;
-        resultSummary: string;
-    };
-    newFile: {
-        folderName: string;
-        fileName: string;
-        fileId: string;
-    };
-    generatedBlocks: ContentBlock[];
+    actions: ActionType[];
     completionText: string;
 }
 
-// --- Scenarios Data ---
+// --- Icon Components (Same as before) ---
+
+function SlackIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+            <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
+        </svg>
+    );
+}
+
+function JiraIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+            <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24.013 12.5V1.005A1.005 1.005 0 0 0 23.013 0z" />
+        </svg>
+    );
+}
+
+function ZoomIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+            <path d="M24 12c0 6.627-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0s12 5.373 12 12zm-4.865-3.33a.482.482 0 0 0-.498.028l-2.937 2.052V9.2c0-.66-.54-1.2-1.2-1.2H6c-.66 0-1.2.54-1.2 1.2v5.6c0 .66.54 1.2 1.2 1.2h8.5c.66 0 1.2-.54 1.2-1.2v-1.55l2.937 2.052a.48.48 0 0 0 .498.028.502.502 0 0 0 .265-.448V9.118a.502.502 0 0 0-.265-.448z" />
+        </svg>
+    );
+}
+
+// --- File contents ---
+
+const RECORDING_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "Zoom Recording — Acme Corp SSO Feedback" },
+    { type: 'p', content: "📹 42 min · Feb 12, 2025 · Sarah Chen (PM), Lisa Park (Acme IT Director)" },
+    { type: 'h2', content: "Transcript Preview" },
+    { type: 'p', content: "Lisa Park: \"Right now we're managing SSO through a clunky SAML proxy. Our IT team spends about 2 hours every time we onboard a new department. If you could get setup time under 15 minutes, that's a game-changer for us.\"" },
+    { type: 'p', content: "Mike Torres: \"From our side, we'd need to support both SAML 2.0 and OIDC. The Okta integration is non-negotiable — 80% of our enterprise pipeline is on Okta.\"" },
+    { type: 'p', content: "Sarah Chen: \"What about SCIM provisioning? That came up in the last 3 customer calls.\"" },
+    { type: 'p', content: "Lisa Park: \"Absolutely. We need users auto-provisioned when they're added in Okta. Right now we have a manual onboarding process that takes a full day.\"" },
+];
+
+const SLACK_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "#customer-feedback — Acme SSO Requests" },
+    { type: 'p', content: "8 messages · Last 14 days" },
+    { type: 'h2', content: "Thread: Acme follow-up" },
+    { type: 'p', content: "@sarah: Just got off the call with Lisa from Acme. SSO is their #1 blocker for the enterprise contract. They need SAML + Okta at minimum." },
+];
+
+const JIRA_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "Jira — AUTH Backlog" },
+    { type: 'p', content: "12 items · Project: AUTH · Filtered: SSO enterprise" },
+    { type: 'table', content: "[[\"Key\",\"Summary\",\"Status\",\"Priority\"],[\"AUTH-142\",\"SCIM provisioning support\",\"Backlog\",\"High\"],[\"AUTH-156\",\"Okta SAML connector\",\"Backlog\",\"Critical\"]]" },
+];
+
+const SPEC_CONTENT_INITIAL: ContentBlock[] = [
+    { type: 'h1', content: "Enterprise Auth Specification" },
+    { type: 'p', content: "Status: Draft · Owner: @sarah · Updated: 2 days ago" },
+    { type: 'h2', content: "Overview" },
+    { type: 'p', content: "This document outlines the architecture for our Enterprise SSO solution. We aim to support SAML 2.0 and OIDC for seamless integration with major IDPs." },
+    { type: 'h2', content: "Scope" },
+    { type: 'ul', content: "SAML 2.0 Service Provider implementation\nRole-based access control (RBAC)\nAudit logging for auth events" },
+];
+
+const GENERATED_SLACK_UPDATE: ContentBlock[] = [
+    { type: 'h1', content: "Draft: Team Update — Acme SSO" },
+    { type: 'p', content: "Channel: #engineering" },
+    { type: 'p', content: "Team — just finished the discovery call with Acme. Good news: they're ready to move forward, but paying for the Enterprise tier depends entirely on our SSO implementation." },
+    { type: 'ul', content: "Critical: Must support Okta SAML 2.0 + OIDC\nCritical: SCIM provisioning (saves them 1 day/user)\nGoal: Setup time < 15 mins (currently takes them 2 hours)" },
+    { type: 'p', content: "I've drafted the tickets below. Let's spike on the Okta connector this sprint." }
+];
+
+const GENERATED_JIRA_TICKETS: ContentBlock[] = [
+    { type: 'h1', content: "Draft: Jira Tickets (Acme Requirements)" },
+    { type: 'table', content: "[[\"Summary\",\"Description\",\"Points\"],[\"Okta SAML 2.0 Connector\",\"Implement SAML SP metadata generation and assertion consumer service compatible with Okta.\",\"5\"],[\"SCIM 2.0 User Provisioning\",\"Support /Users and /Groups endpoints for auto-provisioning via Okta SCIM.\",\"8\"],[\"SSO Setup Wizard\",\"UI flow to guide admins through IDP configuration in < 15 mins.\",\"3\"]]" }
+];
+
+const GENERATED_SPEC_ADDITION: ContentBlock[] = [
+    { type: 'h2', content: "Acme Requirements (New)" },
+    { type: 'p', content: "Added from Customer Discovery Call (Feb 12)" },
+    { type: 'h2', content: "1. Identity Providers" },
+    { type: 'ul', content: "Primary: Okta (80% of pipeline)\nProtocol: SAML 2.0 AND OIDC required" },
+    { type: 'h2', content: "2. Provisioning (SCIM)" },
+    { type: 'quote', content: "\"We need users auto-provisioned when they're added in Okta.\" — Lisa Park" },
+    { type: 'ul', content: "Must support SCIM 2.0 standard\nMap Okta groups to local workspace roles\nInstant de-provisioning upon Okta removal" },
+    { type: 'h2', content: "3. UX Requirements" },
+    { type: 'ul', content: "Self-serve setup wizard for IT admins\nTarget setup time: < 15 minutes" }
+];
+
+// --- PM Agent Scenario ---
 
 const PM_SCENARIO: Scenario = {
     id: 'pm',
-    name: 'Product Manager',
-    icon: Briefcase,
-    description: 'Generate PRD from notes',
-    initialFileId: 'notes',
+    name: 'Discovery Agent',
+    description: 'Call → Plan → Execute actions',
+    initialFileId: 'recording',
     files: [
         {
-            id: 'root', name: 'process_notes', type: 'folder', isOpen: true, children: [
-                { id: 'notes', name: 'meeting_notes.md', type: 'file' },
-                { id: 'roadmap', name: 'Q3_Roadmap.xlsx', type: 'file' }
+            id: 'zoom_folder', name: 'Recordings', type: 'folder', isOpen: true, icon: 'zoom', children: [
+                { id: 'recording', name: 'Acme Corp — SSO Feedback', type: 'file', icon: 'zoom' }
             ]
         },
         {
-            id: 'specs', name: '02_Specs', type: 'folder', isOpen: true, children: []
+            id: 'drafts', name: 'Drafts', type: 'folder', isOpen: true, children: []
+        },
+        {
+            id: 'specs', name: 'Specs', type: 'folder', isOpen: true, children: [
+                { id: 'spec_auth', name: 'Enterprise_Auth.md', type: 'file', icon: 'doc' }
+            ]
+        },
+        {
+            id: 'context', name: 'Context', type: 'folder', isOpen: false, children: [
+                { id: 'slack_home', name: 'Slack', type: 'file', icon: 'slack' },
+                { id: 'jira_home', name: 'Jira', type: 'file', icon: 'jira' }
+            ]
         }
     ],
-    initialBlocks: [
-        { type: 'h1', content: "Meeting Notes: Q3 Planning" },
-        { type: 'p', content: "- Focus on enterprise features: SSO, Audit Logs.\n- Need a dashboard refresh." }
-    ],
-    promptText: "Draft a PRD for the Enterprise Dashboard based on these notes.",
-    toolCall: {
-        name: "fs_read_file",
-        args: { path: "process_notes/meeting_notes.md" },
-        resultSummary: "Read 12 lines from meeting_notes.md"
+    fileContents: {
+        'recording': RECORDING_CONTENT,
+        'slack_home': SLACK_CONTENT,
+        'jira_home': JIRA_CONTENT,
+        'spec_auth': SPEC_CONTENT_INITIAL,
     },
-    newFile: {
-        folderName: '02_Specs',
-        fileName: 'Q3_PRD.md',
-        fileId: 'prd'
-    },
-    generatedBlocks: [
-        { type: 'h1', content: "Q3 Product Requirement Document" },
-        { type: 'h2', content: "1. Overview" },
-        { type: 'p', content: "The Q3 initiative focuses on Enterprise readiness. Key deliverables include SSO integration and a comprehensive Audit Log dashboard." },
-        { type: 'h2', content: "2. Key Features" },
-        { type: 'ul', content: "Single Sign-On (SAML 2.0)\nAudit Trail API\nAdmin Role Management" }
-    ],
-    completionText: "Created `02_Specs/Q3_PRD.md`."
-};
+    promptText: "Summarize the call, draft tickets, and update the Auth spec.",
+    completionText: "Done. I've drafted the update, created tickets, and updated the spec.",
+    actions: [
+        // 1. Analyze Context
+        { type: 'tool_call', name: 'zoom_transcript', args: { id: "Acme Call" }, resultSummary: "Parsed 42 min transcript", duration: 1500 },
+        { type: 'tool_call', name: 'slack_search', args: { query: "Acme SSO" }, resultSummary: "Found 8 messages", duration: 1200 },
+        { type: 'tool_call', name: 'jira_search', args: { project: "AUTH" }, resultSummary: "Found 12 existing tickets", duration: 1000 },
 
-const MARKETING_SCENARIO: Scenario = {
-    id: 'marketing',
-    name: 'Marketing',
-    icon: Megaphone,
-    description: 'SEO Blog Post',
-    initialFileId: 'seo_data',
-    files: [
+        // 2. Think / Plan
         {
-            id: 'strategy', name: 'Strategy', type: 'folder', isOpen: true, children: [
-                { id: 'seo_data', name: 'keywords_v2.csv', type: 'file' }
-            ]
+            type: 'think',
+            content: "Analyzing call transcript...\n• Key Friction: Setup time (2h -> 15m)\n• Tech Req: Okta, SAML, OIDC, SCIM\n• Urgency: High (lost 2 deals)\n\nPlan:\n1. Draft #engineering update highlighting urgency\n2. Create tickets for SCIM & Okta\n3. Append requirements to Enterprise Auth Spec",
+            duration: 3500
         },
-        {
-            id: 'content', name: 'Content', type: 'folder', isOpen: true, children: []
-        }
-    ],
-    initialBlocks: [
-        { type: 'h1', content: "Target Keywords (Q3)" },
-        { type: 'table', content: "[[\"Keyword\",\"Volume\",\"Difficulty\"],[\"ai marketing tools\",\"12k\",\"High\"],[\"automated content creation\",\"5.4k\",\"Medium\"],[\"seo workflow automation\",\"1.2k\",\"Low\"]]" }
-    ],
-    promptText: "Write a blog post about 'AI in Marketing' targeting these keywords.",
-    toolCall: {
-        name: "fs_read_file",
-        args: { path: "Strategy/keywords_v2.csv" },
-        resultSummary: "Analyzed 3 key high-intent keywords."
-    },
-    newFile: {
-        folderName: 'Content',
-        fileName: 'AI_Marketing_Trends.md',
-        fileId: 'blog_post'
-    },
-    generatedBlocks: [
-        { type: 'h1', content: "The Future of AI in Marketing" },
-        { type: 'p', content: "As automated content creation evolves, marketers are shifting focus from production to strategy." },
-        { type: 'h2', content: "Optimizing Your SEO Workflow" },
-        { type: 'p', content: "Leveraging AI marketing tools isn't just about speed; it's about precision. By automating routine drafts, teams can target high-volume keywords like 'seo workflow automation' effectively." },
-        { type: 'ul', content: "Scale content production\nMaintain brand voice consistency\nAnalyze competitor gaps instantly" }
-    ],
-    completionText: "Drafted `Content/AI_Marketing_Trends.md`."
-};
 
-const FINANCE_SCENARIO: Scenario = {
-    id: 'finance',
-    name: 'Finance',
-    icon: PieChart,
-    description: 'Investment Memo',
-    initialFileId: 'transcript',
-    files: [
-        {
-            id: 'research', name: 'Research', type: 'folder', isOpen: true, children: [
-                { id: 'transcript', name: 'NVDA_Q3_Transcript.pdf', type: 'file' }
-            ]
-        },
-        {
-            id: 'memos', name: 'Investment_Memos', type: 'folder', isOpen: true, children: []
-        }
-    ],
-    initialBlocks: [
-        { type: 'h1', content: "NVIDIA Corp. (NVDA) - Q3 Earnings Call" },
-        { type: 'p', content: "CEO Jensen Huang: 'Data center demand is accelerating beyond our supply constraints...'" }
-    ],
-    promptText: "Draft an investment memo analyzing the Data Center growth.",
-    toolCall: {
-        name: "fs_read_file",
-        args: { path: "Research/NVDA_Q3_Transcript.pdf" },
-        resultSummary: "Extracted financial metrics from p. 1-14."
-    },
-    newFile: {
-        folderName: 'Investment_Memos',
-        fileName: 'NVDA_Memo.md',
-        fileId: 'memo'
-    },
-    generatedBlocks: [
-        { type: 'h1', content: "Investment Thesis: NVDA" },
-        { type: 'h2', content: "1. Data Center Growth" },
-        { type: 'p', content: "Revenue is up 279% YoY. The constrains on CoWoS packaging supply are the primary bottleneck, not demand." },
-        { type: 'table', content: "[[\"Segment\",\"Revenue ($B)\",\"YoY Growth\"],[\"Data Center\",\"14.5\",\"+279%\"],[\"Gaming\",\"2.8\",\"+81%\"]]" },
-        { type: 'h2', content: "Risk Factors" },
-        { type: 'ul', content: "Supply chain concentration\nExport controls to China\nValuation multiple compression" }
-    ],
-    completionText: "Created `Investment_Memos/NVDA_Memo.md`."
-};
+        // 3. Draft Slack Update
+        { type: 'tool_call', name: 'fs_write_file', args: { path: "Drafts/Slack_Update.md" }, resultSummary: "Created file", duration: 600 },
+        { type: 'create_file', folderId: 'drafts', fileId: 'draft_slack', name: 'Slack_Update.md', duration: 100 },
+        { type: 'stream_content', fileId: 'draft_slack', blocks: GENERATED_SLACK_UPDATE },
 
-const LEGAL_SCENARIO: Scenario = {
-    id: 'legal',
-    name: 'Legal',
-    icon: Scale,
-    description: 'Contract Review',
-    initialFileId: 'contract',
-    files: [
-        {
-            id: 'agreements', name: 'Agreements', type: 'folder', isOpen: true, children: [
-                { id: 'contract', name: 'Service_MSA_Draft.pdf', type: 'file' }
-            ]
-        },
-        {
-            id: 'review', name: 'Internal_Review', type: 'folder', isOpen: true, children: []
-        }
-    ],
-    initialBlocks: [
-        { type: 'h1', content: "Master Services Agreement" },
-        { type: 'p', content: "SECTION 8. INDEMNIFICATION. Provider shall indemnify Client against all claims, regardless of Provider's negligence..." }
-    ],
-    promptText: "Flag any non-standard indemnity clauses in this MSA.",
-    toolCall: {
-        name: "fs_read_file",
-        args: { path: "Agreements/Service_MSA_Draft.pdf" },
-        resultSummary: "Scanned 24 pages for risk keywords."
-    },
-    newFile: {
-        folderName: 'Internal_Review',
-        fileName: 'Risk_Assessment.md',
-        fileId: 'risk_note'
-    },
-    generatedBlocks: [
-        { type: 'h1', content: "Legal Risk Findings: MSA" },
-        { type: 'h2', content: "Critical Flag: Indemnity" },
-        { type: 'p', content: "Section 8 contains an uncapped, broad form indemnity. This is not standard market practice." },
-        { type: 'h2', content: "Recommendation" },
-        { type: 'ul', content: "Limit indemnity to gross negligence\nCap liability at 12 months fees\nExclude indirect damages" }
-    ],
-    completionText: "Drafted `Internal_Review/Risk_Assessment.md`."
-};
+        { type: 'agent_message', content: "I've drafted the update for #engineering. Now grabbing existing backlog items to deduplicate...", duration: 2000 },
 
-const RFP_SCENARIO: Scenario = {
-    id: 'rfp',
-    name: 'RFP / Security',
-    icon: Shield,
-    description: 'Answer security questionnaires',
-    initialFileId: 'security_policy',
-    files: [
-        {
-            id: 'kb', name: 'knowledge_base', type: 'folder', isOpen: true, children: [
-                { id: 'security_policy', name: 'Security_Policy.md', type: 'file' }
-            ]
-        },
-        {
-            id: 'drafts', name: 'DRAFTS', type: 'folder', isOpen: true, children: []
-        }
-    ],
-    initialBlocks: [
-        { type: 'h1', content: "Security Policy (v2024.1)" },
-        { type: 'h2', content: "3. Data Protection" },
-        { type: 'p', content: "3.1. Encryption at Rest: All customer data is encrypted using AES-256 GCM. Keys are managed via AWS KMS with automatic rotation every 90 days." },
-        { type: 'h2', content: "4. Access Control" },
-        { type: 'ul', content: "MFA is enforced for all employees.\nRole-based access control (RBAC) is implemented." }
-    ],
-    promptText: "Answer their security questionnaire about encryption standards.",
-    toolCall: {
-        name: "fs_read_file",
-        args: { path: "knowledge_base/Security_Policy.md" },
-        resultSummary: "Read Data Protection policies."
-    },
-    newFile: {
-        folderName: 'DRAFTS',
-        fileName: 'Response.md',
-        fileId: 'response'
-    },
-    generatedBlocks: [
-        { type: 'h1', content: "Security Questionnaire Response" },
-        { type: 'p', content: "Based on our security policy, here is the draft response:" },
-        { type: 'h2', content: "Q: How do you protect customer data?" },
-        { type: 'p', content: "We enforce industry-standard encryption protocols. All data at rest is encrypted via AES-256 GCM, and data in transit uses TLS 1.3." },
-        { type: 'ul', content: "AWS KMS Key Rotation (90 days)\nSOC2 Type II Compliant Infrastructure" }
-    ],
-    completionText: "Drafted response in `DRAFTS/Response.md`."
+        // 4. Draft Jira Tickets
+        { type: 'tool_call', name: 'fs_write_file', args: { path: "Drafts/Jira_Tickets.md" }, resultSummary: "Created file", duration: 600 },
+        { type: 'create_file', folderId: 'drafts', fileId: 'draft_jira', name: 'Jira_Tickets.md', duration: 100 },
+        { type: 'stream_content', fileId: 'draft_jira', blocks: GENERATED_JIRA_TICKETS },
+
+        { type: 'agent_message', content: "Tickets drafted. Finally, I'll update the main Auth Spec with these new requirements.", duration: 2000 },
+
+        // 5. Update Spec (Append)
+        { type: 'tool_call', name: 'fs_read_file', args: { path: "Specs/Enterprise_Auth.md" }, resultSummary: "Read file", duration: 800 },
+        { type: 'open_file', fileId: 'spec_auth', duration: 200 },
+        { type: 'stream_content', fileId: 'spec_auth', blocks: GENERATED_SPEC_ADDITION, append: true },
+    ]
 };
 
 const SCENARIOS = {
     pm: PM_SCENARIO,
-    marketing: MARKETING_SCENARIO,
-    finance: FINANCE_SCENARIO,
-    legal: LEGAL_SCENARIO,
-    rfp: RFP_SCENARIO
 };
 
 export function AgentAnimation({ activeScenarioId }: { activeScenarioId: ScenarioId }) {
@@ -306,28 +237,54 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
 
     const [isLoading, setIsLoading] = useState(false);
     const [showReplay, setShowReplay] = useState(false);
-    const [step, setStep] = useState<AnimationStep>("idle");
     const [activeFileId, setActiveFileId] = useState<string>(scenario.initialFileId);
-    const [blocks, setBlocks] = useState<ContentBlock[]>(scenario.initialBlocks);
+    const [blocks, setBlocks] = useState<ContentBlock[]>(scenario.fileContents[scenario.initialFileId] || []);
     const [chatInput, setChatInput] = useState("");
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [files, setFiles] = useState(scenario.files);
+    const [allFileContents, setAllFileContents] = useState<Record<string, ContentBlock[]>>({ ...scenario.fileContents });
+
+    // Refs for animation state
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const mountedRef = useRef(true);
+    const animatingFileRef = useRef<string | null>(null);
+    const animatingBlocksRef = useRef<ContentBlock[]>([]);
 
-    // Helper to update file system structure safely
-    const addFileToFolder = (folderName: string, fileName: string, newId: string) => {
+    // -- Helper Functions --
+
+    const addFileToFolder = (folderId: string, fileName: string, newId: string, icon?: "doc") => {
         setFiles(prev => prev.map(item => {
-            if (item.name === folderName && item.type === "folder") {
+            if (item.id === folderId && item.type === "folder") {
                 return {
                     ...item,
-                    children: [...(item.children || []), { id: newId, name: fileName, type: "file" }]
+                    children: [...(item.children || []), { id: newId, name: fileName, type: "file", icon: icon || "doc" }]
                 };
             }
             return item;
         }));
     };
+
+    const handleFileClick = useCallback((fileId: string) => {
+        setActiveFileId(fileId);
+        if (animatingFileRef.current === fileId) {
+            setBlocks([...animatingBlocksRef.current]);
+        } else if (allFileContents[fileId]) {
+            setBlocks(allFileContents[fileId]);
+        } else {
+            setBlocks([{ type: 'p', content: 'Loading...' }]);
+        }
+        if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+    }, [allFileContents]);
+
+    const handleFolderToggle = useCallback((folderId: string) => {
+        setFiles(prev => prev.map(item => {
+            if (item.id === folderId && item.type === "folder") {
+                return { ...item, isOpen: !item.isOpen };
+            }
+            return item;
+        }));
+    }, []);
 
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
@@ -335,131 +292,179 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
         }
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [chatMessages]);
+    const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
+
+    // -- Animation Loop --
 
     const runAnimation = async () => {
         if (!mountedRef.current) return;
 
-        // Reset State for Run
-        setStep("idle");
+        // Reset
         setChatInput("");
         setChatMessages([]);
         setActiveFileId(scenario.initialFileId);
-        setBlocks(scenario.initialBlocks);
-        setFiles(JSON.parse(JSON.stringify(scenario.files))); // Deep copy reset
+        setBlocks(scenario.fileContents[scenario.initialFileId] || []);
+        setFiles(JSON.parse(JSON.stringify(scenario.files)));
+        setAllFileContents({ ...scenario.fileContents });
         setShowReplay(false);
+        animatingFileRef.current = null;
+        animatingBlocksRef.current = [];
 
-        const wait = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-        // Start Delay
-        await wait(1500);
+        await wait(1000);
         if (!mountedRef.current) return;
 
-        // 1. Type Prompt in Chat
-        setStep("typing_prompt");
+        // 1. Type Prompt
         const command = scenario.promptText;
         for (let i = 0; i <= command.length; i++) {
             if (!mountedRef.current) return;
             setChatInput(command.slice(0, i));
-            await wait(30);
+            await wait(25);
         }
         await wait(400);
 
-        // 2. Submit Message
-        if (!mountedRef.current) return;
-        setChatMessages([{ role: "user", content: command }]);
+        // 2. Submit Prompt
+        setChatMessages([{ id: "msg-user", role: "user", content: command }]);
         setChatInput("");
-        setStep("processing");
         await wait(600);
 
-        // 3. Tool Execution Phase
-        if (!mountedRef.current) return;
-
-        // Add running tool call
-        const toolMsgId = "tool-" + Date.now();
-        const toolArgsString = JSON.stringify(scenario.toolCall.args);
-        setChatMessages(prev => [...prev, {
-            role: "assistant",
-            toolCall: {
-                id: toolMsgId,
-                name: scenario.toolCall.name,
-                args: toolArgsString,
-                status: "running"
-            }
-        }]);
-
-        await wait(2000); // Simulate processing time
-
-        // Mark tool as completed
-        if (!mountedRef.current) return;
-        setChatMessages(prev => prev.map(msg =>
-            msg.toolCall?.id === toolMsgId
-                ? { ...msg, toolCall: { ...msg.toolCall!, status: "completed", result: scenario.toolCall.resultSummary } }
-                : msg
-        ));
-
-        await wait(500);
-
-        // 4. Create File & Switch
-        if (!mountedRef.current) return;
-        setStep("generating");
-        addFileToFolder(scenario.newFile.folderName, scenario.newFile.fileName, scenario.newFile.fileId);
-        await wait(300);
-        setActiveFileId(scenario.newFile.fileId);
-        setBlocks([]); // Start empty
-
-        // 5. Stream Content Block by Block
-        await wait(500);
-
-        const newBlocks: ContentBlock[] = [];
-        for (const block of scenario.generatedBlocks) {
+        // 3. Execute Actions
+        for (const action of scenario.actions) {
             if (!mountedRef.current) return;
 
-            // Add empty block of this type
-            const currentBlock = { ...block, content: block.type === 'table' ? block.content : "" };
-            newBlocks.push(currentBlock);
-            setBlocks([...newBlocks]); // Show block container
+            if (action.type === 'think') {
+                const thinkId = `think-${Date.now()}`;
+                setChatMessages(prev => [...prev, {
+                    id: thinkId,
+                    role: "assistant",
+                    isThinking: true,
+                    content: action.content
+                }]);
+                await wait(action.duration);
+            }
 
-            if (block.type !== 'table') {
-                // Stream text content
-                const chars = block.content.split('');
-                for (let i = 0; i <= chars.length; i++) {
-                    if (!mountedRef.current) return;
-                    newBlocks[newBlocks.length - 1].content = block.content.slice(0, i);
-                    setBlocks([...newBlocks]); // Trigger re-render
+            if (action.type === 'agent_message') {
+                setChatMessages(prev => [...prev, {
+                    id: `msg-${Date.now()}`,
+                    role: "assistant",
+                    content: action.content
+                }]);
+                await wait(action.duration);
+            }
 
-                    if (scrollContainerRef.current) {
-                        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-                    }
-                    await wait(25); // Slower typing
-                }
-            } else {
-                // Just a small pause for table "rendering"
+            if (action.type === 'tool_call') {
+                const toolId = `tool-${Date.now()}`;
+                const argsString = JSON.stringify(action.args);
+
+                // Start
+                setChatMessages(prev => [...prev, {
+                    id: toolId,
+                    role: "assistant",
+                    toolCall: { name: action.name, args: argsString, status: "running" }
+                }]);
+
+                await wait(action.duration);
+
+                // Complete
+                setChatMessages(prev => prev.map(msg =>
+                    msg.id === toolId && msg.toolCall
+                        ? { ...msg, toolCall: { ...msg.toolCall, status: "completed", result: action.resultSummary } }
+                        : msg
+                ));
                 await wait(300);
             }
 
-            await wait(100); // Pause between blocks
+            if (action.type === 'create_file') {
+                addFileToFolder(action.folderId, action.fileId, action.name, action.icon);
+                await wait(action.duration || 500);
+                setActiveFileId(action.fileId);
+                setBlocks([]); // New file empty
+                animatingFileRef.current = action.fileId;
+                animatingBlocksRef.current = [];
+            }
+
+            if (action.type === 'open_file') {
+                setActiveFileId(action.fileId);
+                const existing = allFileContents[action.fileId] || [];
+                setBlocks(existing);
+                animatingFileRef.current = action.fileId;
+                animatingBlocksRef.current = [...existing];
+                await wait(action.duration || 500);
+            }
+
+            if (action.type === 'stream_content') {
+                const targetFileId = action.fileId;
+
+                // Initialize blocks for this stream
+                let currentBlocks = appendModeRefCheck(targetFileId, !!action.append);
+
+                for (const block of action.blocks) {
+                    if (!mountedRef.current) return;
+
+                    const newBlock = { ...block, content: block.type === 'table' ? block.content : "" };
+                    currentBlocks = [...currentBlocks, newBlock];
+
+                    updateAnimatingState(targetFileId, currentBlocks);
+
+                    if (block.type !== 'table') {
+                        const chars = block.content.split('');
+                        for (let i = 0; i <= chars.length; i++) {
+                            if (!mountedRef.current) return;
+                            newBlock.content = block.content.slice(0, i);
+                            // Force update last block
+                            currentBlocks[currentBlocks.length - 1] = { ...newBlock };
+                            updateAnimatingState(targetFileId, currentBlocks);
+
+                            // Auto-scroll editor if active
+                            if (activeFileId === targetFileId && scrollContainerRef.current) {
+                                scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                            }
+                            await wait(12); // Typing speed
+                        }
+                    } else {
+                        await wait(300); // Table fetch delay
+                    }
+                    await wait(50);
+                }
+
+                // Save final state
+                setAllFileContents(prev => ({ ...prev, [targetFileId]: currentBlocks }));
+            }
         }
 
-        // 6. Complete
-        if (!mountedRef.current) return;
-        setStep("complete");
-        setChatMessages(prev => [...prev, { role: "assistant", content: scenario.completionText }]);
+        // Finish
+        setChatMessages(prev => [...prev, { id: "done", role: "assistant", content: scenario.completionText }]);
         setShowReplay(true);
+        animatingFileRef.current = null;
     };
 
-    // Reset when scenario changes
+    // Helper to handle append/overwrite logic for streaming
+    const appendModeRefCheck = (fileId: string, append: boolean) => {
+        if (append) {
+            const existing = allFileContents[fileId] || [];
+            animatingBlocksRef.current = [...existing];
+            return [...existing];
+        } else {
+            animatingBlocksRef.current = [];
+            return [];
+        }
+    };
+
+    const updateAnimatingState = (fileId: string, blocks: ContentBlock[]) => {
+        animatingBlocksRef.current = blocks;
+        if (activeFileId === fileId) {
+            setBlocks([...blocks]);
+        }
+    };
+
     useEffect(() => {
-        mountedRef.current = false; // Cancel previous run immediately
+        mountedRef.current = false;
         setIsLoading(true);
 
         const timer = setTimeout(() => {
             mountedRef.current = true;
             setIsLoading(false);
             runAnimation();
-        }, 500); // Wait for fade out/cleanup
+        }, 500);
 
         return () => {
             mountedRef.current = false;
@@ -467,11 +472,32 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
         };
     }, [activeScenarioId]);
 
-    const handleReplay = () => {
-        runAnimation();
-    };
+    useEffect(() => {
+        scrollToBottom();
+    }, [chatMessages]);
+
+
+    // --- Render Helpers ---
 
     const activeFile = files.flatMap(f => [f, ...(f.children || [])]).find(f => f.id === activeFileId);
+
+    const renderFileIcon = (item: FileSystemItem) => {
+        if (item.icon === 'zoom') return <ZoomIcon className="w-3.5 h-3.5 text-[#2D8CFF]" />;
+        if (item.icon === 'slack') return <SlackIcon className="w-3.5 h-3.5 text-[#4A154B]" />;
+        if (item.icon === 'jira') return <JiraIcon className="w-3.5 h-3.5 text-[#0052CC]" />;
+        return <span className="material-symbols-outlined text-[16px] text-gray-400">description</span>;
+    };
+
+    const renderFolderIcon = (item: FileSystemItem) => {
+        return <span className="material-symbols-outlined text-[16px] text-gray-400">folder</span>;
+    };
+
+    const renderToolIcon = (toolName: string) => {
+        if (toolName === 'zoom_transcript') return <ZoomIcon className="w-3 h-3 text-[#2D8CFF]" />;
+        if (toolName === 'slack_search') return <SlackIcon className="w-3 h-3 text-[#4A154B]" />;
+        if (toolName === 'jira_search') return <JiraIcon className="w-3 h-3 text-[#0052CC]" />;
+        return <span className="material-symbols-outlined text-[14px]">search</span>;
+    };
 
     return (
         <div className="flex w-full h-full bg-white items-stretch text-left font-sans text-[#111318] relative">
@@ -482,22 +508,8 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
                 </div>
             )}
 
-            {/* Replay Overlay */}
-            {showReplay && !isLoading && (
-                <div className="absolute inset-0 z-40 bg-white/60 backdrop-blur-[1px] flex items-center justify-center fade-in duration-500">
-                    <button
-                        onClick={handleReplay}
-                        className="flex items-center gap-2 px-6 py-3 bg-[#111318] text-white rounded-full font-bold shadow-lg hover:scale-105 transition-all"
-                    >
-                        <Loader2 className="w-4 h-4" /> {/* Reuse loader icon as replay for now, or use rotate-ccw if available */}
-                        Replay Demo
-                    </button>
-                </div>
-            )}
-
-            {/* Sidebar (FileExplorer) - Hidden on mobile */}
-            <div className="w-56 flex-none border-r border-[#e5e7eb] bg-[#f9fafb] flex flex-col hidden md:flex">
-                {/* Workspace Switcher Mock */}
+            {/* Sidebar */}
+            <div className="w-56 flex-none border-r border-[#e5e7eb] bg-[#f9fafb] flex-col hidden md:flex">
                 <div className="p-3 border-b border-[#f3f4f6]">
                     <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white transition-colors cursor-default">
                         <div className="w-5 h-5 bg-gray-200 rounded flex items-center justify-center text-gray-600 text-[10px] font-bold">W</div>
@@ -505,153 +517,145 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
                         <ChevronDown className="w-3.5 h-3.5 text-gray-400 ml-auto" />
                     </div>
                 </div>
-
-                {/* Tree */}
+                <div className="px-4 pt-3 pb-1">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Sources</span>
+                </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
                     {files.map((item) => (
                         <div key={item.id}>
-                            <div className="flex items-center gap-1.5 px-2 py-1.5 text-gray-600 hover:bg-white rounded-md cursor-default text-[13px] font-medium">
-                                {item.type === "folder" && <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
-                                <span className="material-symbols-outlined text-[16px] text-gray-400">
-                                    {item.type === "folder" ? "folder" : "description"}
-                                </span>
-                                {item.name}
+                            <div
+                                onClick={() => item.type === "folder" && handleFolderToggle(item.id)}
+                                className="flex items-center gap-1.5 px-2 py-1.5 text-gray-600 hover:bg-white rounded-md cursor-pointer text-[13px] font-medium select-none transition-colors"
+                            >
+                                {item.type === "folder" && (
+                                    <ChevronDown className={cn("w-3.5 h-3.5 text-gray-400 transition-transform", !item.isOpen && "-rotate-90")} />
+                                )}
+                                {item.type === "folder" ? renderFolderIcon(item) : renderFileIcon(item)}
+                                <span className="truncate">{item.name}</span>
                             </div>
                             {item.isOpen && item.children?.map(child => (
                                 <div
                                     key={child.id}
+                                    onClick={() => handleFileClick(child.id)}
                                     className={cn(
-                                        "ml-5 flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-default text-[13px] transition-colors",
+                                        "ml-5 flex items-center gap-1.5 px-2 py-1.5 rounded-md cursor-pointer text-[13px] transition-colors select-none",
                                         activeFileId === child.id ? "bg-white shadow-sm border border-gray-200/60 text-gray-900 font-medium" : "text-gray-500 hover:bg-gray-100/50"
                                     )}
                                 >
-                                    <span className={`material-symbols-outlined text-[16px] ${child.name.endsWith(".md") || child.name.endsWith(".xlsx") ? "text-black" : "text-gray-400"}`}>
-                                        description
-                                    </span>
-                                    {child.name}
+                                    {renderFileIcon(child)}
+                                    <span className="truncate">{child.name}</span>
                                 </div>
                             ))}
                         </div>
                     ))}
                 </div>
-
-                {/* Sidebar Footer */}
-                <div className="p-3 border-t border-[#f3f4f6] text-xs text-gray-400 flex items-center gap-2">
-                    <Settings className="w-3.5 h-3.5" /> Settings
-                </div>
             </div>
 
-            {/* Main Content (Editor) */}
+            {/* Editor */}
             <div className="flex-1 flex flex-col min-w-0 bg-white">
-                {/* Header */}
                 <div className="h-12 border-b border-[#e5e7eb] flex items-center justify-between px-4">
                     <div className="flex items-center gap-3">
                         <Menu className="w-4 h-4 text-gray-400 lg:hidden" />
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                             <span>Workspace</span>
                             <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
-                            <span className="font-medium text-gray-900 truncate max-w-[150px]">{activeFile?.name}</span>
+                            <span className="font-medium text-gray-900 truncate max-w-[200px]">{activeFile?.name}</span>
                         </div>
-                        {step === "processing" && (
-                            <span className="ml-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-gray-100 text-[10px] font-medium text-gray-600 animate-pulse">
-                                <Sparkles className="w-3 h-3" /> Thinking...
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="flex -space-x-1.5">
-                            <div className="w-6 h-6 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[10px] text-black font-bold">AJ</div>
-                        </div>
-                        <Share2 className="w-4 h-4 text-gray-400" />
                     </div>
                 </div>
 
-                {/* Editor Content Area */}
                 <div className="flex-1 overflow-y-auto relative bg-white" ref={scrollContainerRef}>
                     <div className="max-w-3xl mx-auto py-12 px-8 min-h-full">
                         {blocks.map((block, idx) => (
-                            <div key={idx} className="animate-in fade-in duration-300 mb-6">
-                                {block.type === 'h1' && (
-                                    <h1 className="text-4xl font-bold tracking-tight text-[#111318] mb-6 font-serif">{block.content}</h1>
-                                )}
-                                {block.type === 'h2' && (
-                                    <h2 className="text-2xl font-bold tracking-tight text-[#111318] mt-8 mb-4 font-serif">{block.content}</h2>
-                                )}
-                                {block.type === 'p' && (
-                                    <p className="text-[1.0625rem] leading-7 text-[#374151] mb-4">{block.content}</p>
+                            <div key={idx} className="animate-in fade-in duration-300 mb-4">
+                                {block.type === 'h1' && <h1 className="text-3xl font-bold tracking-tight text-[#111318] mb-4 font-serif">{block.content}</h1>}
+                                {block.type === 'h2' && <h2 className="text-xl font-bold tracking-tight text-[#111318] mt-6 mb-3 font-serif">{block.content}</h2>}
+                                {block.type === 'p' && <p className="text-[15px] leading-7 text-[#374151] mb-3">{block.content}</p>}
+                                {block.type === 'quote' && (
+                                    <blockquote className="border-l-3 border-[#2D8CFF] bg-[#2D8CFF]/5 pl-4 py-3 pr-4 rounded-r-lg text-[14px] italic text-[#374151] my-4">
+                                        {block.content}
+                                    </blockquote>
                                 )}
                                 {block.type === 'ul' && (
-                                    <ul className="list-disc pl-5 mb-4 text-[1.0625rem] leading-7 text-[#374151] space-y-1">
-                                        {block.content.split('\n').map((item, i) => (
-                                            <li key={i}>{item}</li>
-                                        ))}
+                                    <ul className="list-disc pl-5 mb-3 text-[15px] leading-7 text-[#374151] space-y-1">
+                                        {block.content.split('\n').map((item, i) => <li key={i}>{item}</li>)}
                                     </ul>
                                 )}
-                                {block.type === 'table' && (
-                                    <div className="border border-gray-200 rounded-lg overflow-hidden my-4 shadow-sm">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-[#f9fafb] text-gray-500 font-medium border-b border-gray-200">
-                                                <tr>
-                                                    {JSON.parse(block.content)[0].map((header: string, i: number) => (
-                                                        <th key={i} className="px-4 py-2">{header}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100">
-                                                {JSON.parse(block.content).slice(1).map((row: string[], i: number) => (
-                                                    <tr key={i} className="hover:bg-gray-50">
-                                                        {row.map((cell: string, j: number) => (
-                                                            <td key={j} className={cn("px-4 py-2", j === 3 && cell === "Compliant" ? "text-black font-medium" : "text-gray-700")}>
-                                                                {cell}
-                                                            </td>
+                                {block.type === 'table' && (() => {
+                                    try {
+                                        const data = JSON.parse(block.content);
+                                        return (
+                                            <div className="border border-gray-200 rounded-lg overflow-hidden my-4 shadow-sm">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-[#f9fafb] text-gray-500 font-medium border-b border-gray-200">
+                                                        <tr>{data[0].map((h: any, i: any) => <th key={i} className="px-4 py-2">{h}</th>)}</tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {data.slice(1).map((r: any[], i: any) => (
+                                                            <tr key={i} className="hover:bg-gray-50">
+                                                                {r.map((c: string, j: any) => <td key={j} className="px-4 py-2 text-gray-700">{c}</td>)}
+                                                            </tr>
                                                         ))}
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        );
+                                    } catch { return null; }
+                                })()}
                             </div>
                         ))}
-                        {blocks.length === 0 && <div className="h-full w-full" />}
                     </div>
                 </div>
             </div>
 
-            {/* Right Panel (Agent) - Hidden on smaller screens */}
-            <div className="w-80 flex-none border-l border-[#e5e7eb] bg-white flex flex-col hidden xl:flex">
+            {/* Chat Panel */}
+            <div className="w-80 flex-none border-l border-[#e5e7eb] bg-white flex-col hidden xl:flex">
                 <div className="h-12 border-b border-[#e5e7eb] flex items-center justify-between px-4">
-                    <span className="text-sm font-semibold text-gray-900">Chat</span>
+                    <span className="text-sm font-semibold text-gray-900">Agent</span>
                     <div className="flex gap-1">
                         <History className="w-4 h-4 text-gray-400" />
                         <Plus className="w-4 h-4 text-gray-400" />
                     </div>
                 </div>
 
-                {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={chatContainerRef}>
                     {chatMessages.length === 0 && (
                         <div className="text-center mt-10 space-y-2">
                             <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center mx-auto">
                                 <Sparkles className="w-5 h-5 text-gray-400" />
                             </div>
-                            <p className="text-xs text-gray-400">How can I help you today?</p>
+                            <p className="text-xs text-gray-400">Ready to help.</p>
                         </div>
                     )}
 
-                    {chatMessages.map((msg, i) => (
-                        <div key={i} className={cn("flex flex-col gap-1 text-sm animate-in slide-in-from-bottom-2 fade-in", msg.role === "user" ? "items-end" : "items-start")}>
+                    {chatMessages.map((msg) => (
+                        <div key={msg.id} className={cn("flex flex-col gap-1 text-sm animate-in slide-in-from-bottom-2 fade-in", msg.role === "user" ? "items-end" : "items-start")}>
                             {msg.role === "user" ? (
                                 <div className="px-3 py-2 rounded-xl max-w-[90%] bg-gray-100 text-gray-900 rounded-br-none">
                                     {msg.content}
                                 </div>
                             ) : (
                                 <div className="space-y-2 w-full">
-                                    {/* Tool Call Card */}
+                                    {/* Thinking Block */}
+                                    {msg.isThinking && (
+                                        <div className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-100/50">
+                                            <div className="flex items-center gap-1.5 mb-2 text-gray-400 font-medium">
+                                                <BrainCircuit className="w-3.5 h-3.5" />
+                                                <span>Thinking...</span>
+                                            </div>
+                                            <div className="pl-5 border-l border-gray-200">
+                                                {msg.content?.split('\n').map((line, i) => (
+                                                    <div key={i} className="mb-1">{line}</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Tool Call */}
                                     {msg.toolCall && (
                                         <div className={cn(
                                             "bg-white border rounded-lg p-3 text-xs shadow-sm transition-all duration-300",
-                                            msg.toolCall.status === "running" ? "border-l-2 border-l-gray-300 border-gray-200" : "border-l-2 border-l-black border-gray-200"
+                                            `border-l-2 ${msg.toolCall.status === "running" ? "border-l-gray-300" : "border-l-black"} border-gray-200`
                                         )}>
                                             <div className="flex items-center gap-2 mb-1.5">
                                                 {msg.toolCall.status === "running" ? (
@@ -659,9 +663,10 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
                                                 ) : (
                                                     <Check className="w-3.5 h-3.5 text-black" />
                                                 )}
+                                                {renderToolIcon(msg.toolCall.name)}
                                                 <span className="font-medium text-gray-900">{msg.toolCall.name}</span>
                                             </div>
-                                            <div className="font-mono text-gray-500 bg-gray-50 px-1.5 py-1 rounded mb-1 truncate">
+                                            <div className="font-mono text-gray-500 bg-gray-50 px-1.5 py-1 rounded mb-1 truncate text-[11px]">
                                                 {msg.toolCall.args}
                                             </div>
                                             {msg.toolCall.status === "completed" && msg.toolCall.result && (
@@ -673,8 +678,8 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
                                         </div>
                                     )}
 
-                                    {/* Text Content */}
-                                    {msg.content && (
+                                    {/* Regular Message */}
+                                    {msg.content && !msg.isThinking && (
                                         <div className="flex gap-2 max-w-[90%]">
                                             <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center shrink-0 mt-1">
                                                 <Bot className="w-3.5 h-3.5 text-white" />
@@ -688,23 +693,22 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
                             )}
                         </div>
                     ))}
-
                 </div>
 
-                {/* Input Area */}
-                <div className="p-4 border-t border-[#e5e7eb]">
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={chatInput}
-                            readOnly
-                            placeholder="Ask zerodraft..."
-                            className="w-full pl-3 pr-8 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                        />
-                        <button className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black">
-                            <Send className="w-3.5 h-3.5" />
-                        </button>
+                <div className="border-t border-[#e5e7eb]">
+                    <div className="p-4">
+                        <div className="relative">
+                            <input type="text" value={chatInput} readOnly placeholder="Ask zerodraft..." className="w-full pl-3 pr-8 py-2 bg-gray-50 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none" />
+                            <Send className="w-3.5 h-3.5 absolute right-6 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
                     </div>
+                    {showReplay && (
+                        <div className="px-4 pb-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <button onClick={runAnimation} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-medium text-gray-600">
+                                <RotateCcw className="w-3 h-3" /> Replay Demo
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
