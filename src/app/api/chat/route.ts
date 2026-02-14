@@ -125,6 +125,7 @@ const webSearchTool = tool(
         description: "Search the web for real-time information. Use this when the user asks about current events, facts you're unsure about, research topics, or anything that requires up-to-date information.",
         schema: z.object({
             query: z.string().describe("The search query (be specific and concise)"),
+            domains: z.array(z.string()).optional().describe("Optional list of domains to restrict search to (e.g. ['palantir.com']). Use this if the user asks to search a specific site.")
         })
     }
 );
@@ -211,12 +212,19 @@ ${memory ? `### Memory
 - **Goal:** ${memory.goal || 'Not specified'}
 - **Audience:** ${memory.audience || 'Not specified'}
 ` : ''}
+## EXECUTION RULES
+1. **Analyze the Request:** Understand the goal and constraints.
+2. **No Research Loops:** Do not search for the same topic twice. If you have enough info, START WRITING.
+3. **Handle Facts:** If a file read fails, do not assume it exists. Check the file list or ask the user.
+4. **Output Handling:** DO NOT output the Writer's text in your chat response. You MUST use \`suggest_edit\` or \`insert_text\` to put it in the file.
+5. **Creative Writing:** If the user wants to WRITE/DRAFT -> Call \`consult_writer\`.
+6. **Task Handling:** If the user asks for a task you can't do, explain why.
 
 ## EXECUTION
 1. Analyze the Request.
 2. If it requires creative writing/editing -> Call \`consult_writer\`.
 3. If it requires file ops -> Call \`fs_*\` tools.
-4. Once you have the text from the Writer, apply it using \`suggest_edit\`.
+4. Once you have the text from the Writer, apply it using \`suggest_edit\`. DO NOT copy it into the chat (unless the user explicitly asked for a chat answer).
 `;
 }
 
@@ -371,7 +379,7 @@ export async function POST(req: Request) {
 
                 // --- THE AGENTIC LOOP ---
                 let loopCount = 0;
-                const MAX_LOOPS = 5;
+                const MAX_LOOPS = 20;
 
                 while (loopCount < MAX_LOOPS) {
                     loopCount++;
@@ -416,7 +424,7 @@ export async function POST(req: Request) {
 
                                 } else if (call.name === "web_search") {
                                     // Execute Web Search
-                                    toolOutput = await webSearch(call.args.query);
+                                    toolOutput = await webSearch(call.args.query, 5, call.args.domains);
                                 }
 
                                 // Stream "Tool Result" event
@@ -440,7 +448,7 @@ export async function POST(req: Request) {
                         // Fire background reflection (non-blocking)
                         if (userId) {
                             const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
-                            extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
+                            // extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
                         }
 
                         // Stream "Tool Calls" event for client to execute
@@ -464,7 +472,7 @@ export async function POST(req: Request) {
                     // Fire background reflection (non-blocking)
                     if (userId) {
                         const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
-                        extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
+                        // extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
                     }
 
                     for await (const chunk of streamResponse) {

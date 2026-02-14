@@ -76,11 +76,19 @@ interface ChatSession {
 }
 
 // Build folder tree string for context
-function buildFolderTree(files: FileNode[], prefix: string = ""): string {
+function buildFolderTree(files: FileNode[], prefix: string = "", seenPaths: Set<string> = new Set()): string {
     let tree = "";
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const isLast = i === files.length - 1;
+    // Filter out duplicates at this level before processing
+    const uniqueFiles = files.filter(file => {
+        if (!file.path) return true;
+        if (seenPaths.has(file.path)) return false;
+        seenPaths.add(file.path);
+        return true;
+    });
+
+    for (let i = 0; i < uniqueFiles.length; i++) {
+        const file = uniqueFiles[i];
+        const isLast = i === uniqueFiles.length - 1;
         const connector = isLast ? "└── " : "├── ";
         const icon = file.type === "folder" ? "📁" : "📄";
 
@@ -88,7 +96,7 @@ function buildFolderTree(files: FileNode[], prefix: string = ""): string {
 
         if (file.type === "folder" && file.children && file.children.length > 0) {
             const childPrefix = prefix + (isLast ? "    " : "│   ");
-            tree += buildFolderTree(file.children, childPrefix);
+            tree += buildFolderTree(file.children, childPrefix, seenPaths);
         }
     }
     return tree;

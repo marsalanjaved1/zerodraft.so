@@ -41,16 +41,73 @@ export const fsWriteFile = new DynamicStructuredTool({
     schema: z.object({
         file_path: z.string().describe("Relative path where to save the file"),
         content: z.string().describe("The full content to write to the file"),
+        overwrite: z.boolean().optional().default(false).describe("If true, overwrite existing file. If false (default), generate a unique name if file exists."),
     }),
-    func: async ({ file_path, content }) => {
+    func: async ({ file_path, content, overwrite }) => {
         try {
-            const fullPath = validatePath(file_path);
+            let fullPath = validatePath(file_path);
+            let finalPath = file_path;
+
             // Ensure directory exists
             await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+            // Check if file exists
+            try {
+                await fs.access(fullPath);
+                // File exists
+                if (!overwrite) {
+                    // Generate unique filename
+                    const dir = path.dirname(fullPath);
+                    const ext = path.extname(fullPath);
+                    const name = path.basename(fullPath, ext);
+
+                    let counter = 1;
+                    let uniqueName = `${name}-${counter}${ext}`;
+                    let uniquePath = path.join(dir, uniqueName);
+
+                    while (true) {
+                        try {
+                            await fs.access(uniquePath);
+                            // Exists, try next
+                            counter++;
+                            uniqueName = `${name}-${counter}${ext}`;
+                            uniquePath = path.join(dir, uniqueName);
+                        } catch {
+                            // Does not exist, use this
+                            fullPath = uniquePath;
+                            finalPath = path.join(path.dirname(file_path), uniqueName);
+                            break;
+                        }
+                    }
+                }
+            } catch {
+                // File does not exist, proceed with original path
+            }
+
             await fs.writeFile(fullPath, content, "utf-8");
-            return `Successfully wrote to ${file_path}`;
+            return `Successfully wrote to ${finalPath}`;
         } catch (err: any) {
             return `Error writing file: ${err.message}`;
+        }
+    },
+});
+
+export const fsRename = new DynamicStructuredTool({
+    name: "fs_rename",
+    description: "Rename a file or directory.",
+    schema: z.object({
+        old_path: z.string().describe("Relative path to the existing file or directory"),
+        new_path: z.string().describe("Relative path for the new name"),
+    }),
+    func: async ({ old_path, new_path }) => {
+        try {
+            const fullOldPath = validatePath(old_path);
+            const fullNewPath = validatePath(new_path);
+
+            await fs.rename(fullOldPath, fullNewPath);
+            return `Successfully renamed ${old_path} to ${new_path}`;
+        } catch (err: any) {
+            return `Error renaming: ${err.message}`;
         }
     },
 });
@@ -129,4 +186,4 @@ export const fsListDirectory = new DynamicStructuredTool({
     },
 });
 
-export const fileSystemTools = [fsReadFile, fsWriteFile, fsUpdateFile, fsListDirectory];
+export const fileSystemTools = [fsReadFile, fsWriteFile, fsRename, fsUpdateFile, fsListDirectory];

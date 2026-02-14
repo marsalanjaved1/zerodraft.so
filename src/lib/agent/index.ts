@@ -25,6 +25,7 @@ When asked to:
 - Read files: Use fs_read_file
 - Write/create files: Use fs_write_file
 - Update/modify files: Use fs_update_file (find and replace text)
+- Rename files: Use fs_rename
 - List files: Use fs_list_directory
 - Insert text: Use editor_insert_at_cursor
 - Work with selection: Use editor_get_selection

@@ -94,22 +94,33 @@ async function tavilySearch(query: string, count: number = 5): Promise<SearchRes
 /**
  * Execute a web search using the configured provider.
  * Automatically picks the provider based on available API keys.
+ * 
+ * @param query The search query
+ * @param count Number of results to return
+ * @param domains Optional list of domains to restrict search to (e.g. ["palantir.com"])
  */
-export async function webSearch(query: string, count: number = 5): Promise<string> {
+export async function webSearch(query: string, count: number = 5, domains?: string[]): Promise<string> {
     try {
+        let finalQuery = query;
+        if (domains && domains.length > 0) {
+            // Append site:domain1 OR site:domain2 ...
+            const siteOperators = domains.map(d => `site:${d}`).join(" OR ");
+            finalQuery = `${query} (${siteOperators})`;
+        }
+
         let results: SearchResult[];
 
         // Pick provider based on available keys
         if (process.env.BRAVE_SEARCH_API_KEY) {
-            results = await braveSearch(query, count);
+            results = await braveSearch(finalQuery, count);
         } else if (process.env.TAVILY_API_KEY) {
-            results = await tavilySearch(query, count);
+            results = await tavilySearch(finalQuery, count);
         } else {
             return "⚠️ Web search is not configured. Set BRAVE_SEARCH_API_KEY or TAVILY_API_KEY in your environment variables.";
         }
 
         if (results.length === 0) {
-            return `No results found for: "${query}"`;
+            return `No results found for: "${finalQuery}"`;
         }
 
         // Format results for the Controller
@@ -117,7 +128,7 @@ export async function webSearch(query: string, count: number = 5): Promise<strin
             `**${i + 1}. ${r.title}**\n   ${r.url}\n   ${r.snippet}`
         ).join("\n\n");
 
-        return `### 🔍 Search Results for "${query}"\n\n${formatted}`;
+        return `### 🔍 Search Results for "${finalQuery}"\n\n${formatted}`;
     } catch (err: any) {
         console.error("[WebSearch] Error:", err);
         return `Web search failed: ${err.message}`;
