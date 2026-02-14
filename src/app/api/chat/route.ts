@@ -442,14 +442,25 @@ export async function POST(req: Request) {
 
     // Handle incoming client-side tool results
     if (toolResults && toolResults.length > 0) {
-        lcMessages.push(new AIMessage({
-            content: "",
-            tool_calls: toolResults.map((r: any) => ({
-                id: r.toolCallId,
-                name: r.toolName || "tool",
-                args: r.args || {}
-            }))
-        }));
+        // Check if the last message already has these tool calls (avoid duplicates)
+        const lastMsg = lcMessages[lcMessages.length - 1];
+        const lastToolCallIds = new Set(
+            (lastMsg instanceof AIMessage && lastMsg.tool_calls)
+                ? lastMsg.tool_calls.map((tc: any) => tc.id)
+                : []
+        );
+        const alreadyHasToolCalls = toolResults.every((r: any) => lastToolCallIds.has(r.toolCallId));
+
+        if (!alreadyHasToolCalls) {
+            lcMessages.push(new AIMessage({
+                content: "",
+                tool_calls: toolResults.map((r: any) => ({
+                    id: r.toolCallId,
+                    name: r.toolName || "tool",
+                    args: r.args || {}
+                }))
+            }));
+        }
         for (const result of toolResults) {
             lcMessages.push(new ToolMessage({
                 content: result.result,
@@ -458,6 +469,38 @@ export async function POST(req: Request) {
             }));
         }
     }
+
+    // ── Sanitize: ensure every AIMessage tool_call has a ToolMessage ──
+    // Providers return 400 if a tool_call has no matching ToolMessage.
+    const sanitized: any[] = [];
+    for (let i = 0; i < lcMessages.length; i++) {
+        sanitized.push(lcMessages[i]);
+        const msg = lcMessages[i];
+        if (msg instanceof AIMessage && msg.tool_calls && msg.tool_calls.length > 0) {
+            // Collect all ToolMessage IDs that follow before the next non-Tool message
+            const answeredIds = new Set<string>();
+            for (let j = i + 1; j < lcMessages.length; j++) {
+                if (lcMessages[j] instanceof ToolMessage) {
+                    answeredIds.add((lcMessages[j] as any).tool_call_id);
+                } else {
+                    break;
+                }
+            }
+            // Inject synthetic ToolMessages for any unanswered tool_calls
+            for (const tc of msg.tool_calls) {
+                if (!answeredIds.has(tc.id ?? "")) {
+                    sanitized.push(new ToolMessage({
+                        content: "(result not available)",
+                        tool_call_id: tc.id ?? "",
+                        name: tc.name,
+                    }));
+                }
+            }
+        }
+    }
+    // Replace lcMessages with sanitized version
+    lcMessages.length = 0;
+    lcMessages.push(...sanitized);
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

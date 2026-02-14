@@ -284,7 +284,7 @@ export function executeTool(
             }
 
             const listing = filesInDir
-                .map(f => `${f.type === "folder" ? "📁" : "📄"} ${f.path}`)
+                .map(f => `${f.type === "folder" ? "[folder]" : "[file]"} ${f.path}`)
                 .join("\n");
 
             return { success: true, result: listing };

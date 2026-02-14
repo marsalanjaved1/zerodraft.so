@@ -10,6 +10,17 @@ export interface FileNode {
     content?: string;
 }
 
+/**
+ * Strip emoji prefixes, leading colons, and extra whitespace from a path.
+ * The LLM sometimes copies these from directory listings into fs_read_file calls.
+ */
+function cleanPath(rawPath: string): string {
+    return rawPath
+        .replace(/[\u{1F4C1}\u{1F4C2}\u{1F4C4}\u{1F5C2}]/gu, "") // strip folder/file emojis
+        .replace(/^[:\s]+/, "")                                     // strip leading ":" and spaces
+        .trim();
+}
+
 export class FileSystem {
     private workspaceId: string;
     private supabaseClient: any;
@@ -49,7 +60,7 @@ export class FileSystem {
 
         const fileList = documents.map((d: any) => {
             const path = buildPath(d);
-            return `${d.type === 'folder' ? '📂' : '📄'} ${path}`;
+            return `${d.type === 'folder' ? '[folder]' : '[file]'} ${path}`;
         }).sort();
 
         return fileList.join('\n');
@@ -105,8 +116,9 @@ export class FileSystem {
     async readFile(path: string): Promise<string> {
         const supabase = await this.getClient();
 
-        // Extract the filename from the path (last segment)
-        const filename = path.split('/').pop() || path;
+        // Clean path and extract the filename from the path (last segment)
+        const cleaned = cleanPath(path);
+        const filename = cleaned.split('/').pop() || cleaned;
 
         const { data: document, error } = await supabase
             .from("documents")
@@ -132,8 +144,9 @@ export class FileSystem {
     async updateFile(path: string, newContent: string): Promise<string> {
         const supabase = await this.getClient();
 
-        // Extract the filename from the path (last segment)
-        const filename = path.split('/').pop() || path;
+        // Clean path and extract the filename from the path (last segment)
+        const cleaned = cleanPath(path);
+        const filename = cleaned.split('/').pop() || cleaned;
 
         // First find the file
         const { data: document, error: findError } = await supabase
@@ -189,8 +202,9 @@ export class FileSystem {
     async writeFile(path: string, content: string): Promise<string> {
         const supabase = await this.getClient();
 
-        // Extract the filename from the path (last segment)
-        const filename = path.split('/').pop() || path;
+        // Clean path and extract the filename from the path (last segment)
+        const cleaned = cleanPath(path);
+        const filename = cleaned.split('/').pop() || cleaned;
 
         // First find the file - SEARCH FOR ALL MATCHES, NOT JUST ONE
         // This handles the case where duplicates already exist
@@ -234,8 +248,9 @@ export class FileSystem {
     async appendFile(path: string, content: string): Promise<string> {
         const supabase = await this.getClient();
 
-        // Extract the filename from the path (last segment)
-        const filename = path.split('/').pop() || path;
+        // Clean path and extract the filename from the path (last segment)
+        const cleaned = cleanPath(path);
+        const filename = cleaned.split('/').pop() || cleaned;
 
         // Find the file
         const { data: document, error: findError } = await supabase
