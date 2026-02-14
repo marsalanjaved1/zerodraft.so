@@ -17,7 +17,11 @@ import {
     Sparkles,
     History,
     BrainCircuit,
-    Lightbulb
+    Lightbulb,
+    BookOpen,
+    Globe2,
+    FileText,
+    PenTool
 } from "lucide-react";
 
 
@@ -29,7 +33,7 @@ type FileSystemItem = {
     type: "file" | "folder";
     children?: FileSystemItem[];
     isOpen?: boolean;
-    icon?: "slack" | "jira" | "zoom" | "doc";
+    icon?: "slack" | "jira" | "zoom" | "doc" | "notebook" | "globe" | "manuscript" | "pen";
 };
 
 type ContentBlock = {
@@ -59,7 +63,7 @@ type ActionType =
     | { type: 'create_file'; folderId: string; fileId: string; name: string; icon?: "doc"; duration?: number }
     | { type: 'stream_content'; fileId: string; blocks: ContentBlock[]; append?: boolean }
 
-type ScenarioId = 'pm';
+type ScenarioId = 'pm' | 'fiction';
 
 interface Scenario {
     id: ScenarioId;
@@ -158,6 +162,61 @@ const GENERATED_SPEC_ADDITION: ContentBlock[] = [
     { type: 'ul', content: "Self-serve setup wizard for IT admins\nTarget setup time: < 15 minutes" }
 ];
 
+// --- Fiction Writer Content ---
+
+const CHARACTER_NOTES_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "Character Notes — Kael Ashborn" },
+    { type: 'p', content: "📝 Last updated: Feb 10, 2025" },
+    { type: 'h2', content: "Core Identity" },
+    { type: 'ul', content: "Age: 28 · Former soldier, now reluctant leader\nMotivation: Protect his younger sister Lira\nFlaw: Trusts no one — isolates allies when stakes rise\nVoice: Terse, dry humor, avoids emotion" },
+    { type: 'h2', content: "Arc (Book 1)" },
+    { type: 'p', content: "Kael begins as a lone operative running supply raids. By Chapter 3, he's forced to confront Commander Voss — the man who burned his village. This is the turning point where he stops running and starts leading." },
+    { type: 'quote', content: "\"I didn't come back to be a hero. I came back because no one else will.\"" },
+];
+
+const WORLD_BUILDING_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "World Bible — The Ashlands" },
+    { type: 'p', content: "🌍 Setting Document · Fantasy/Post-Apocalyptic" },
+    { type: 'h2', content: "Geography" },
+    { type: 'ul', content: "The Ashlands: Scorched plains surrounding the Ironspire\nThe Verdance: Last fertile valley, controlled by the Collective\nThe Undercroft: Network of tunnels beneath the old capital" },
+    { type: 'h2', content: "Factions" },
+    { type: 'table', content: "[[\"Faction\",\"Leader\",\"Goal\"],[\"The Collective\",\"Commander Voss\",\"Control all remaining resources\"],[\"The Drifters\",\"Kael (reluctant)\",\"Survive and resist\"],[\"The Weavers\",\"Elder Maren\",\"Restore the old magic\"]]" },
+    { type: 'h2', content: "Magic System" },
+    { type: 'p', content: "Threadweaving — drawing energy from the land's memory. Costs the user physical vitality. Overuse causes 'greying' (premature aging)." },
+];
+
+const MANUSCRIPT_CONTENT: ContentBlock[] = [
+    { type: 'h1', content: "The Last Light — Manuscript" },
+    { type: 'p', content: "Status: Draft · Word Count: 24,300 · Target: 80,000" },
+    { type: 'h2', content: "Chapter 1 — The Raid" },
+    { type: 'p', content: "The supply convoy moved through the canyon at dusk, exactly as Kael had predicted. He counted twelve guards. Too many for a clean job, not enough for him to walk away." },
+    { type: 'h2', content: "Chapter 2 — The Message" },
+    { type: 'p', content: "Lira's letter arrived folded into a dead bird — the Drifters' way of saying 'urgent.' Three words: Voss found us." },
+];
+
+const GENERATED_CHAPTER_DRAFT: ContentBlock[] = [
+    { type: 'h1', content: "Chapter 3 — The Confrontation" },
+    { type: 'p', content: "The Ironspire rose from the ash like a broken tooth against the sky. Kael crouched behind the remnants of a watchtower, his fingers tracing the hilt of his blade — a nervous habit he thought he'd buried years ago." },
+    { type: 'p', content: "\"You don't have to do this alone,\" Maren said from somewhere behind him. Her voice carried the calm of someone who had already seen how this ended." },
+    { type: 'p', content: "\"I'm not doing it for company.\" He didn't turn around." },
+    { type: 'p', content: "The Collective's banners hung limp in the dead air — crimson and iron-gray, the colors of a world that had stopped pretending. Below, soldiers moved in precise formations across the courtyard. Voss trained them well. Voss trained everyone well, right up until he put a torch to everything they loved." },
+    { type: 'quote', content: "He could still smell it. After six years, he could still smell the smoke." },
+    { type: 'p', content: "Kael closed his eyes and reached for the threads. They came reluctantly, thin and brittle this far into the Ashlands — like trying to start a fire with wet wood. He pulled anyway, feeling the familiar ache bloom behind his ribs, the greying at his temples spreading another fraction of an inch." },
+    { type: 'p', content: "When he opened his eyes, the watchtower's shadow stretched impossibly long, pooling around the nearest guard's feet like dark water. The man froze. Then crumpled." },
+    { type: 'p', content: "\"Move,\" Kael said. And for the first time in six years, someone followed him into the dark." },
+];
+
+const GENERATED_OUTLINE_ADDITION: ContentBlock[] = [
+    { type: 'h2', content: "Chapter 3 Summary (New)" },
+    { type: 'p', content: "Added to manuscript outline" },
+    { type: 'h2', content: "Key Beats" },
+    { type: 'ul', content: "Kael arrives at the Ironspire with Maren\nFirst use of threadweaving — establishes magic cost\nSilent takedown of outer guard\nKael accepts a follower for the first time (arc shift)" },
+    { type: 'h2', content: "Character Development" },
+    { type: 'quote', content: "Turning point: Kael stops working alone. His 'trust no one' flaw cracks when Maren follows without asking permission." },
+    { type: 'h2', content: "Threads to Resolve" },
+    { type: 'ul', content: "Voss confrontation set up for Chapter 4\nGreying side-effect foreshadows cost of final battle\nLira's location still unknown — tension maintained" },
+];
+
 // --- PM Agent Scenario ---
 
 const PM_SCENARIO: Scenario = {
@@ -228,8 +287,67 @@ const PM_SCENARIO: Scenario = {
     ]
 };
 
-const SCENARIOS = {
+// --- Fiction Writer Scenario ---
+
+const FICTION_SCENARIO: Scenario = {
+    id: 'fiction',
+    name: 'Writing Agent',
+    description: 'Research → Draft → Refine',
+    initialFileId: 'char_notes',
+    files: [
+        {
+            id: 'research', name: 'Research', type: 'folder', isOpen: true, icon: 'notebook', children: [
+                { id: 'char_notes', name: 'Character Notes — Kael', type: 'file', icon: 'notebook' },
+                { id: 'world_doc', name: 'World Bible — Ashlands', type: 'file', icon: 'globe' }
+            ]
+        },
+        {
+            id: 'fiction_drafts', name: 'Drafts', type: 'folder', isOpen: true, children: []
+        },
+        {
+            id: 'manuscripts', name: 'Manuscripts', type: 'folder', isOpen: true, children: [
+                { id: 'manuscript_main', name: 'The_Last_Light.md', type: 'file', icon: 'manuscript' }
+            ]
+        },
+    ],
+    fileContents: {
+        'char_notes': CHARACTER_NOTES_CONTENT,
+        'world_doc': WORLD_BUILDING_CONTENT,
+        'manuscript_main': MANUSCRIPT_CONTENT,
+    },
+    promptText: "Write Chapter 3 — the confrontation at the Ironspire. Use my character notes and world bible.",
+    completionText: "Done. Chapter 3 is drafted and I've updated the manuscript outline.",
+    actions: [
+        // 1. Read context
+        { type: 'tool_call', name: 'read_notes', args: { file: "Character Notes" }, resultSummary: "Loaded Kael's arc & voice", duration: 1200 },
+        { type: 'tool_call', name: 'read_notes', args: { file: "World Bible" }, resultSummary: "Loaded factions, magic system", duration: 1000 },
+        { type: 'tool_call', name: 'fs_read_file', args: { path: "Manuscripts/The_Last_Light.md" }, resultSummary: "Read Ch 1–2 (24.3k words)", duration: 1400 },
+
+        // 2. Think / Plan
+        {
+            type: 'think',
+            content: "Planning Chapter 3...\n• Setting: Ironspire ruins, ash plains\n• POV: Kael (close 3rd)\n• Key beat: First threadweaving scene\n• Arc shift: Kael allows Maren to follow\n• Tone: Tense, sparse prose\n\nPlan:\n1. Draft the confrontation scene (~1,200 words)\n2. Update manuscript outline with chapter summary",
+            duration: 3500
+        },
+
+        // 3. Draft Chapter
+        { type: 'tool_call', name: 'consult_writer', args: { style: "sparse literary fantasy" }, resultSummary: "Style locked: terse, sensory", duration: 800 },
+        { type: 'tool_call', name: 'fs_write_file', args: { path: "Drafts/Chapter_3_Draft.md" }, resultSummary: "Created file", duration: 600 },
+        { type: 'create_file', folderId: 'fiction_drafts', fileId: 'chapter_3', name: 'Chapter_3_Draft.md', icon: 'doc', duration: 100 },
+        { type: 'stream_content', fileId: 'chapter_3', blocks: GENERATED_CHAPTER_DRAFT },
+
+        { type: 'agent_message', content: "Chapter 3 drafted. Now I'll update the manuscript outline with the new chapter summary.", duration: 2000 },
+
+        // 4. Update Manuscript Outline
+        { type: 'tool_call', name: 'fs_read_file', args: { path: "Manuscripts/The_Last_Light.md" }, resultSummary: "Read file", duration: 800 },
+        { type: 'open_file', fileId: 'manuscript_main', duration: 200 },
+        { type: 'stream_content', fileId: 'manuscript_main', blocks: GENERATED_OUTLINE_ADDITION, append: true },
+    ]
+};
+
+const SCENARIOS: Record<ScenarioId, Scenario> = {
     pm: PM_SCENARIO,
+    fiction: FICTION_SCENARIO,
 };
 
 export function AgentAnimation({ activeScenarioId }: { activeScenarioId: ScenarioId }) {
@@ -485,6 +603,10 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
         if (item.icon === 'zoom') return <ZoomIcon className="w-3.5 h-3.5 text-[#2D8CFF]" />;
         if (item.icon === 'slack') return <SlackIcon className="w-3.5 h-3.5 text-[#4A154B]" />;
         if (item.icon === 'jira') return <JiraIcon className="w-3.5 h-3.5 text-[#0052CC]" />;
+        if (item.icon === 'notebook') return <BookOpen className="w-3.5 h-3.5 text-amber-600" />;
+        if (item.icon === 'globe') return <Globe2 className="w-3.5 h-3.5 text-emerald-600" />;
+        if (item.icon === 'manuscript') return <FileText className="w-3.5 h-3.5 text-violet-600" />;
+        if (item.icon === 'pen') return <PenTool className="w-3.5 h-3.5 text-rose-500" />;
         return <span className="material-symbols-outlined text-[16px] text-gray-400">description</span>;
     };
 
@@ -496,6 +618,8 @@ export function AgentAnimation({ activeScenarioId }: { activeScenarioId: Scenari
         if (toolName === 'zoom_transcript') return <ZoomIcon className="w-3 h-3 text-[#2D8CFF]" />;
         if (toolName === 'slack_search') return <SlackIcon className="w-3 h-3 text-[#4A154B]" />;
         if (toolName === 'jira_search') return <JiraIcon className="w-3 h-3 text-[#0052CC]" />;
+        if (toolName === 'read_notes') return <BookOpen className="w-3 h-3 text-amber-600" />;
+        if (toolName === 'consult_writer') return <PenTool className="w-3 h-3 text-rose-500" />;
         return <span className="material-symbols-outlined text-[14px]">search</span>;
     };
 
