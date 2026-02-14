@@ -17,7 +17,6 @@ import {
 import { generatePlan, formatPlanForPrompt } from "@/lib/agent/planner";
 import { webSearch } from "@/lib/agent/tools/web-search";
 
-export const runtime = "edge";
 export const maxDuration = 300; // Allow up to 5 minutes for long generations
 
 const langsmithClient = new Client();
