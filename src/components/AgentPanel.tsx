@@ -606,13 +606,27 @@ export function AgentPanel({
                         // Small delay for visual feedback
                         await new Promise(resolve => setTimeout(resolve, 300));
 
+                        // Helper: complete a tool and add its result to conversation history
+                        const completeToolWithResult = (result: string) => {
+                            updateToolStatus("completed", result);
+                            // Add role:"tool" message so the server sees the result
+                            const toolResultMsg: Message = {
+                                id: crypto.randomUUID(),
+                                role: "tool",
+                                content: typeof result === 'string' ? result : JSON.stringify(result),
+                                tool_call_id: toolCall.id,
+                                name: toolCall.name,
+                            };
+                            currentMessages = [...currentMessages, toolResultMsg];
+                        };
+
                         try {
                             const args = JSON.parse(toolCall.arguments);
 
                             // Check if it's a writing tool
                             if (isWritingTool(toolCall.name)) {
                                 const result = executeWritingToolLocal(toolCall.name, args);
-                                updateToolStatus("completed", result);
+                                completeToolWithResult(result);
                             } else if (toolCall.name.startsWith("fs_")) {
                                 // Check if this targets the currently open file
                                 const isCurrentFile = selectedFile && (
@@ -627,7 +641,7 @@ export function AgentPanel({
                                 if (toolCall.name === "fs_read_file" && isCurrentFile) {
                                     console.log("AgentPanel: Reading active file from memory", selectedFile!.name);
                                     const liveContent = editorContentRef.current || "";
-                                    updateToolStatus("completed", liveContent);
+                                    completeToolWithResult(liveContent);
                                 }
                                 // WRITE to active file: update in-memory first, DB sync async
                                 else if (toolCall.name === "fs_write_file" && isCurrentFile) {
@@ -640,7 +654,7 @@ export function AgentPanel({
                                     executeFileSystemTool(workspaceId, toolCall.name, args).catch(
                                         err => console.warn("Async DB sync failed:", err)
                                     );
-                                    updateToolStatus("completed", `Wrote ${args.content?.length || 0} chars to ${selectedFile!.name}`);
+                                    completeToolWithResult(`Wrote ${args.content?.length || 0} chars to ${selectedFile!.name}`);
                                     onRefreshFiles?.();
                                 }
                                 // FIX: Handle fs_append_file for active file
@@ -652,13 +666,13 @@ export function AgentPanel({
                                     executeFileSystemTool(workspaceId, toolCall.name, args).catch(
                                         err => console.warn("Async DB sync failed:", err)
                                     );
-                                    updateToolStatus("completed", `Appended ${args.content?.length || 0} chars to ${selectedFile!.name}`);
+                                    completeToolWithResult(`Appended ${args.content?.length || 0} chars to ${selectedFile!.name}`);
                                     onRefreshFiles?.();
                                 }
                                 else {
                                     // Non-active file: execute server-side as normal
                                     const result = await executeFileSystemTool(workspaceId, toolCall.name, args);
-                                    updateToolStatus("completed", result);
+                                    completeToolWithResult(result);
 
                                     // Refresh sidebar after file creation/write operations
                                     if ((toolCall.name === "fs_write_file" || toolCall.name === "fs_append_file") &&
@@ -680,10 +694,19 @@ export function AgentPanel({
                                     onFilesChange?.(result.updatedFiles);
                                 }
 
-                                updateToolStatus("completed", result.result);
+                                completeToolWithResult(result.result);
                             }
                         } catch (err: any) {
                             updateToolStatus("error", err.message || "Tool execution failed");
+                            // Add error result to conversation history too
+                            const toolErrorMsg: Message = {
+                                id: crypto.randomUUID(),
+                                role: "tool",
+                                content: `Error: ${err.message || "Tool execution failed"}`,
+                                tool_call_id: toolCall.id,
+                                name: toolCall.name,
+                            };
+                            currentMessages = [...currentMessages, toolErrorMsg];
                         }
                     }
 
