@@ -401,10 +401,18 @@ export function AgentPanel({
                             content: m.content,
                             tool_call_id: m.tool_call_id,
                             name: m.name,
+                            ...(m.toolCalls && m.toolCalls.length > 0 ? {
+                                toolCalls: m.toolCalls.map(tc => ({
+                                    id: tc.id,
+                                    name: tc.name,
+                                    arguments: tc.arguments,
+                                }))
+                            } : {}),
                         })).filter(m =>
                             m.role !== "assistant" ||
                             (m.content && m.content.trim() !== "") ||
-                            m.tool_call_id
+                            m.tool_call_id ||
+                            (m.toolCalls && m.toolCalls.length > 0)
                         ),
                         model: selectedModel,
                         workspaceId,
@@ -493,6 +501,9 @@ export function AgentPanel({
                                         status: "running"
                                     };
 
+                                    // Update visual display on current assistant message
+                                    // The streaming message accumulates all internal toolCalls
+                                    // and they get sent to the API via the updated serialization
                                     currentMessages = currentMessages.map(m =>
                                         m.id === assistantMessageId
                                             ? { ...m, toolCalls: [...(m.toolCalls || []), toolCall] }
@@ -500,7 +511,7 @@ export function AgentPanel({
                                     );
                                     onMessagesUpdate(currentMessages);
                                 } else if (event.type === "tool_result") {
-                                    // Server finished a tool
+                                    // Server finished a tool - update visual display
                                     currentMessages = currentMessages.map(m =>
                                         m.id === assistantMessageId
                                             ? {
@@ -514,6 +525,16 @@ export function AgentPanel({
                                             : m
                                     );
                                     onMessagesUpdate(currentMessages);
+
+                                    // Add a tool-role message to the conversation history
+                                    const toolResultMsg: Message = {
+                                        id: crypto.randomUUID(),
+                                        role: "tool",
+                                        content: typeof event.result === 'string' ? event.result : JSON.stringify(event.result),
+                                        tool_call_id: event.toolCallId,
+                                        name: event.name,
+                                    };
+                                    currentMessages = [...currentMessages, toolResultMsg];
                                 } else if (event.type === "tool_calls") {
                                     streamedToolCalls = event;
                                 } else if (event.type === "error") {

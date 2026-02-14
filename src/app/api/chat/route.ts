@@ -505,7 +505,7 @@ export async function POST(req: Request) {
                 // --- THE AGENTIC LOOP (Wrapped in traceable) ---
                 const runAgenticLoop = traceable(async () => {
                     let loopCount = 0;
-                    const MAX_LOOPS = 20;
+                    const MAX_LOOPS = 8;
 
                     while (loopCount < MAX_LOOPS) {
                         loopCount++;
@@ -553,11 +553,17 @@ export async function POST(req: Request) {
                                         toolOutput = await webSearch(call.args.query, 5, call.args.domains);
                                     }
 
-                                    // Stream "Tool Result" event
+                                    // Stream "Tool Result" event (truncated for UI display)
+                                    const truncatedResult = call.name === "web_search"
+                                        ? `Found ${(toolOutput.match(/\*\*/g) || []).length / 2} results for "${call.args.query}"`
+                                        : call.name === "consult_writer"
+                                            ? `Writer produced ${toolOutput.split(/\s+/).length} words`
+                                            : toolOutput.slice(0, 100);
                                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                                         type: "tool_result",
                                         toolCallId: call.id,
-                                        result: toolOutput // You might want to truncate this if it's huge, but for search it's needed
+                                        name: call.name,
+                                        result: truncatedResult
                                     })}\n\n`));
 
                                     lcMessages.push(new ToolMessage({
