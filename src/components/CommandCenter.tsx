@@ -49,15 +49,6 @@ const TOOL_LABELS: Record<string, string> = {
     web_search: "Searching web...",
 };
 
-const MODELS = [
-    { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
-    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
-    { id: "anthropic/claude-opus-4.5", name: "Claude Opus 4.5" },
-    { id: "moonshotai/kimi-k2-thinking", name: "Kimi k2 Thinking" },
-    { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash" },
-    { id: "deepseek/deepseek-v3.2", name: "DeepSeek v3.2" },
-    { id: "minimax/minimax-m2.5", name: "Minimax M2.5" },
-];
 
 export function CommandCenter({ currentFile, onFileUpdate, files, onFilesChange }: CommandCenterProps) {
     const [messages, setMessages] = useState<Message[]>([
@@ -68,7 +59,7 @@ export function CommandCenter({ currentFile, onFileUpdate, files, onFilesChange 
                 "I'm your AI assistant. I can help you with:\n\n• Reading and updating documents\n• Gathering feedback from Slack\n• Checking issue trackers\n• Researching topics on the web\n\nTry: \"Read the PRD and suggest improvements\"",
         },
     ]);
-    const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
+    const [selectedModel, setSelectedModel] = useState("anthropic/claude-haiku-4.5");
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -388,7 +379,10 @@ export function CommandCenter({ currentFile, onFileUpdate, files, onFilesChange 
                         value={selectedModel}
                         onChange={(e) => setSelectedModel(e.target.value)}
                     >
-                        {MODELS.map((model) => (
+                        {[
+                            { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5" },
+                            { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
+                        ].map((model) => (
                             <option key={model.id} value={model.id} className="bg-[#252526] text-[#cccccc]">
                                 {model.name}
                             </option>

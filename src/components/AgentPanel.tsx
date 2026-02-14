@@ -110,7 +110,7 @@ const MODELS = [
     { id: "moonshotai/kimi-k2-thinking", name: "Kimi k2 Thinking", maxTokens: 200000 },
     { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", maxTokens: 1000000 },
     { id: "deepseek/deepseek-v3.2", name: "DeepSeek v3.2", maxTokens: 64000 },
-    { id: "minimax/minimax-m2.1", name: "Minimax M2.1", maxTokens: 32000 },
+    { id: "minimax/minimax-m2.5", name: "Minimax M2.5", maxTokens: 204800 },
 ];
 
 // Writing tool names (handled client-side)
