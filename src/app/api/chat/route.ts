@@ -1,4 +1,8 @@
 import { ChatOpenAI } from "@langchain/openai";
+import { traceable, getCurrentRunTree } from "langsmith/traceable";
+import { Client } from "langsmith";
+import { wrapOpenAI } from "langsmith/wrappers";
+import OpenAI from "openai";
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { tool } from "@langchain/core/tools";
@@ -14,6 +18,49 @@ import { generatePlan, formatPlanForPrompt } from "@/lib/agent/planner";
 import { webSearch } from "@/lib/agent/tools/web-search";
 
 export const maxDuration = 300; // Allow up to 5 minutes for long generations
+
+const langsmithClient = new Client();
+
+// gets a history of all LLM calls in the thread to construct conversation history
+async function getThreadHistory(threadId: string, projectName: string): Promise<any[]> {
+    try {
+        // Filter runs by the specific thread and project
+        const filterString = `and(in(metadata_key, ["session_id", "thread_id"]), eq(metadata_value, "${threadId}"))`;
+
+        // Only grab the LLM runs
+        const runs: any[] = [];
+        for await (const run of langsmithClient.listRuns({
+            projectName: projectName,
+            filter: filterString,
+            runType: "llm"
+        })) {
+            if (run.run_type === "llm") {
+                runs.push(run);
+            }
+        }
+
+        // Sort by start time to get the most recent interaction
+        runs.sort((a: any, b: any) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
+
+        // Check if we have any runs
+        if (runs.length === 0) {
+            return [];
+        }
+
+        // The current state of the conversation
+        const latestRun = runs[0];
+        const inputMessages = latestRun.inputs.messages || [];
+        const outputMessage = latestRun.outputs?.choices?.[0]?.message || null;
+
+        if (outputMessage) {
+            return [...inputMessages, outputMessage];
+        }
+        return inputMessages;
+    } catch (e) {
+        console.error("Error fetching thread history:", e);
+        return [];
+    }
+}
 
 // File System Tools
 const fsReadFile = tool(
@@ -35,6 +82,18 @@ const fsWriteFile = tool(
         schema: z.object({
             path: z.string().describe("Path to the file"),
             content: z.string().describe("Full content to write")
+        })
+    }
+);
+
+const fsAppendFile = tool(
+    async () => "placeholder",
+    {
+        name: "fs_append_file",
+        description: "Append content to an existing file. Use this for adding content to large files in chunks to avoid token limits.",
+        schema: z.object({
+            path: z.string().describe("Path to the file"),
+            content: z.string().describe("Content to append")
         })
     }
 );
@@ -136,7 +195,7 @@ const INTERNAL_TOOL_NAMES = ["consult_writer", "web_search"];
 // Controller sees ALL tools, including the ability to consult the writer
 const controllerTools = [
     // File system
-    fsReadFile, fsWriteFile, fsListDirectory,
+    fsReadFile, fsWriteFile, fsAppendFile, fsListDirectory,
     // Editor/writing
     insertText, replaceSelection, suggestEdit, openFileInEditor,
     // Delegation & research
@@ -169,6 +228,12 @@ function buildControllerSystemPrompt(folderTree: string, currentFile: any | null
     return `You are **ZeroDraft Controller** — the orchestrator of the user's writing session.
 You manage the workspace, navigate files, and — most importantly — **delegate creative work to your Specialist Writer.**
 
+## MEMORY & CONTEXT RULE
+Before calling \`fs_read_file\`:
+1. **CHECK YOUR MESSAGE HISTORY.** Did you or the user already read this file in a previous turn?
+2. If yes, **use the content from the history**. DO NOT re-read it.
+3. Reading the same file twice is a waste of resources.
+
 ## YOUR ROLE
 You do NOT write long-form content yourself. You are the project manager.
 - **User wants a file?** -> You find it.
@@ -182,8 +247,20 @@ The Writer is a specialized model tuned for high-quality prose. It is better tha
 - **Output:** It will return the raw text.
 - **Action:** You then take that text and use \`suggest_edit\` or \`insert_text\` to put it in the document.
 
+## WRITER DELEGATION RULE (CRITICAL)
+You CANNOT generate long content yourself. You MUST use the Specialist Writer for ALL prose > 100 words.
+If the user asks for a "comprehensive guide" or "long document":
+1. **DIVIDE THE WORK:** Break it into SMALL, manageable chunks (e.g., "Introduction only", "Section 1 only").
+   - **MAXIMUM 800 WORDS** per Writer call. Do not ask for the whole document at once.
+2. **ITERATE STRICTLY:**
+   - **Step 1:** Call \`consult_writer\` for "Introduction" (max 800 words) -> Save to file (\`fs_write_file\`).
+   - **Step 2:** Call \`consult_writer\` for "Section 1" (max 800 words) -> **APPEND** to file (\`fs_append_file\`).
+   - **Step 3:** Call \`consult_writer\` for "Section 2" (max 800 words) -> **APPEND** to file (\`fs_append_file\`).
+   - **Step 4:** Call \`notify_user\` to say "Done." -> STOP.
+3. **NEVER** try to write the content yourself in \`fs_append_file\`. It will crash. Always ask the Writer first.
+
 ## CRITICAL RULES FOR EDITING
-1. **HTML TRAP:** The user is likely writing in Markdown or plain text. **DO NOT** let the Writer (or yourself) inject HTML tags like \`<p>\` or \`<span>\` unless the file is explicitly an .html file.
+1. **HTML TRAP:** The user is likely writing in Markdown or plain text. **DO NOT** let the Writer (or yourself) inject HTML tags like <p> or <span> unless the file is explicitly an .html file.
 2. **Text Addressing:** Use \`suggest_edit\` with \`search_text\` and \`replacement_text\`.
    - Copy the EXACT text you want to change into \`search_text\`. It must match verbatim.
    - Put the new text into \`replacement_text\`.
@@ -194,17 +271,38 @@ The Writer is a specialized model tuned for high-quality prose. It is better tha
    - DO NOT use \`fs_write_file\` on the open file. The system will block it.
    - If a file is NOT open, use \`open_file_in_editor\` first.
 
+## DUPLICATE FILE CHECK (CRITICAL)
+Before calling \`fs_write_file\`, ALWAYS check if the file already exists using \`fs_list_directory\`.
+- If it exists, use \`fs_append_file\` to ADD content to it.
+- NEVER create a second file with a different name for the SAME task.
+- If you already created "Guide.md", do NOT create "Guide - Extensive.md" or "Guide (SDE2).md".
+- **ONE DOCUMENT PER USER REQUEST. No exceptions.**
+
+## STOPPING RULE
+Once you have generated the full document (all sections written and saved), **YOU MUST STOP.**
+Do not ask "Would you like me to add more?" or "I can expand on this."
+Just confirm completion and wait for the user.
+
+## LARGE CONTENT RULE (OUTPUT SAFETY)
+Even with delegation, if you receive a large block of text (> 1000 words) from the Writer:
+1. **DO NOT** try to write it all at once. You will crash.
+2. **CHUNK IT:**
+   - \`fs_write_file\` (first 800 words)
+   - \`fs_append_file\` (next 800 words)
+   - Repeat.
+3. **Better yet:** Ask the Writer for smaller chunks in the first place.
+
 ## WORKSPACE CONTEXT
 ### Files
-\`\`\`
+\\\`\\\`\\\`
 ${folderTree || "(empty workspace)"}
-\`\`\`
+\\\`\\\`\\\`
 
-${hasOpenFile ? `### Currently Open: \`${currentFile.name}\`
+${hasOpenFile ? `### Currently Open: \\\`${currentFile.name}\\\`
 ${currentFile.content ? `
-\`\`\`
+\\\`\\\`\\\`
 ${numberLines(currentFile.content.slice(0, 10000))}
-\`\`\`
+\\\`\\\`\\\`
 ` : '*(Content not loaded)*'}
 ` : `### No Document Open`}
 
@@ -212,6 +310,16 @@ ${memory ? `### Memory
 - **Goal:** ${memory.goal || 'Not specified'}
 - **Audience:** ${memory.audience || 'Not specified'}
 ` : ''}
+## COMMUNICATION STYLE (IMPORTANT)
+You are NOT a silent robot. You are a helpful, conversational assistant.
+**Between every tool call, provide a brief message explaining what you're doing and what you found.**
+- ✅ "Great, I found your resume. Let me read through it to understand your background..."
+- ✅ "Interesting — you have strong experience in fintech but limited people-management examples. Let me research questions around that gap..."
+- ✅ "I've drafted the introduction section. Now I'll work on the STAR-format examples..."
+- ❌ Do NOT just silently call tools without any chat message.
+- ❌ Do NOT only say "Working..." or "Searching..."
+Keep narration concise (1-2 sentences). Do NOT write essays between tool calls.
+
 ## EXECUTION RULES
 1. **Analyze the Request:** Understand the goal and constraints.
 2. **No Research Loops:** Do not search for the same topic twice. If you have enough info, START WRITING.
@@ -229,7 +337,13 @@ ${memory ? `### Memory
 }
 
 export async function POST(req: Request) {
-    const { messages, model, toolResults, folderTree, currentFile, memoryContext, workspaceId, contextFiles, webSearchEnabled = true } = await req.json();
+    const { messages, model, toolResults, folderTree, currentFile, memoryContext, workspaceId, chatSessionId, contextFiles, webSearchEnabled = true } = await req.json();
+    console.log("Chat Route Request:", { chatSessionId, workspaceId, model });
+
+    // Ensure we have a session ID
+    const effectiveSessionId = chatSessionId || crypto.randomUUID();
+    console.log("Effective Session ID:", effectiveSessionId);
+
     const selectedModel = model || "anthropic/claude-3.5-sonnet";
 
     // 0. Get authenticated user for memory system
@@ -272,7 +386,11 @@ export async function POST(req: Request) {
     const controllerLLM = new ChatOpenAI({
         modelName: selectedModel,
         temperature: 0, // Strict for logic
-        maxTokens: 4096,
+        maxTokens: 8192,
+        tags: ["controller", "zerodraft"],
+        metadata: {
+            session_id: effectiveSessionId,
+        },
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
             apiKey: process.env.OPENROUTER_API_KEY,
@@ -284,7 +402,11 @@ export async function POST(req: Request) {
     const writerLLM = new ChatOpenAI({
         modelName: selectedModel, // Or "anthropic/claude-3-opus" if available/context allows
         temperature: 0.7, // Creative for writing
-        maxTokens: 4096,
+        maxTokens: 8192,
+        tags: ["writer", "specialist", "zerodraft"],
+        metadata: {
+            session_id: effectiveSessionId,
+        },
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
             apiKey: process.env.OPENROUTER_API_KEY,
@@ -353,7 +475,8 @@ export async function POST(req: Request) {
                                     openFileName: currentFile?.name,
                                     hasSelection: false,
                                     fileCount: folderTree ? folderTree.split("\n").length : 0,
-                                }
+                                },
+                                effectiveSessionId // Pass threadId
                             );
 
                             // Stream "Planning" event
@@ -378,117 +501,128 @@ export async function POST(req: Request) {
                 const controllerWithTools = controllerLLM.bindTools(activeTools);
 
                 // --- THE AGENTIC LOOP ---
-                let loopCount = 0;
-                const MAX_LOOPS = 20;
 
-                while (loopCount < MAX_LOOPS) {
-                    loopCount++;
+                // --- THE AGENTIC LOOP (Wrapped in traceable) ---
+                const runAgenticLoop = traceable(async () => {
+                    let loopCount = 0;
+                    const MAX_LOOPS = 20;
 
-                    // Invoke Controller
-                    // We use invoke() because we need to see if it calls tools or returns text.
-                    // If we wanted to stream the "thinking" (text before tool call), update this to stream.
-                    const response = await controllerWithTools.invoke(lcMessages);
+                    while (loopCount < MAX_LOOPS) {
+                        loopCount++;
 
-                    // Check for Tool Calls
-                    if (response.tool_calls && response.tool_calls.length > 0) {
-                        // Check if any tool call is internal (consult_writer, web_search)
-                        const internalCalls = response.tool_calls.filter(tc => INTERNAL_TOOL_NAMES.includes(tc.name));
-                        const externalCalls = response.tool_calls.filter(tc => !INTERNAL_TOOL_NAMES.includes(tc.name));
+                        // Invoke Controller
+                        // We use invoke() because we need to see if it calls tools or returns text.
+                        // If we wanted to stream the "thinking" (text before tool call), update this to stream.
+                        const response = await controllerWithTools.invoke(lcMessages);
 
-                        // If specialized Writer/Search tools are called, execute them SERVER SIDE
-                        if (internalCalls.length > 0) {
-                            // Add the assistant's tool calls to history
-                            lcMessages.push(response);
+                        // Check for Tool Calls
+                        if (response.tool_calls && response.tool_calls.length > 0) {
+                            // Check if any tool call is internal (consult_writer, web_search)
+                            const internalCalls = response.tool_calls.filter(tc => INTERNAL_TOOL_NAMES.includes(tc.name));
+                            const externalCalls = response.tool_calls.filter(tc => !INTERNAL_TOOL_NAMES.includes(tc.name));
 
-                            for (const call of internalCalls) {
-                                // Stream "Tool Started" event
-                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                                    type: "tool_start",
-                                    name: call.name,
-                                    toolCallId: call.id,
-                                    args: call.args
-                                })}\n\n`));
+                            // If specialized Writer/Search tools are called, execute them SERVER SIDE
+                            if (internalCalls.length > 0) {
+                                // Add the assistant's tool calls to history
+                                lcMessages.push(response);
 
-                                let toolOutput = "";
+                                for (const call of internalCalls) {
+                                    // Stream "Tool Started" event
+                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                                        type: "tool_start",
+                                        name: call.name,
+                                        toolCallId: call.id,
+                                        args: call.args
+                                    })}\n\n`));
 
-                                if (call.name === "consult_writer") {
-                                    // Execute Writer
-                                    const args = call.args;
-                                    const writerContext = `Instruction: ${args.instruction}\nContext: ${args.context || "None"}\nTone: ${args.tone || "Neutral"}`;
+                                    let toolOutput = "";
 
-                                    const writerResponse = await writerLLM.invoke([
-                                        new SystemMessage(writerSystemPrompt),
-                                        new HumanMessage(writerContext)
-                                    ]);
-                                    toolOutput = typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content);
+                                    if (call.name === "consult_writer") {
+                                        // Execute Writer
+                                        const args = call.args;
+                                        const writerContext = `Instruction: ${args.instruction}\nContext: ${args.context || "None"}\nTone: ${args.tone || "Neutral"}`;
 
-                                } else if (call.name === "web_search") {
-                                    // Execute Web Search
-                                    toolOutput = await webSearch(call.args.query, 5, call.args.domains);
+                                        const writerResponse = await writerLLM.invoke([
+                                            new SystemMessage(writerSystemPrompt),
+                                            new HumanMessage(writerContext)
+                                        ]);
+                                        toolOutput = typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content);
+
+                                    } else if (call.name === "web_search") {
+                                        // Execute Web Search
+                                        toolOutput = await webSearch(call.args.query, 5, call.args.domains);
+                                    }
+
+                                    // Stream "Tool Result" event
+                                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                                        type: "tool_result",
+                                        toolCallId: call.id,
+                                        result: toolOutput // You might want to truncate this if it's huge, but for search it's needed
+                                    })}\n\n`));
+
+                                    lcMessages.push(new ToolMessage({
+                                        tool_call_id: call.id!,
+                                        content: toolOutput,
+                                        name: call.name
+                                    }));
                                 }
-
-                                // Stream "Tool Result" event
-                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                                    type: "tool_result",
-                                    toolCallId: call.id,
-                                    result: toolOutput // You might want to truncate this if it's huge, but for search it's needed
-                                })}\n\n`));
-
-                                lcMessages.push(new ToolMessage({
-                                    tool_call_id: call.id!,
-                                    content: toolOutput,
-                                    name: call.name
-                                }));
+                                // Loop continues! Controller receives the results and decides what to do next.
+                                continue;
                             }
-                            // Loop continues! Controller receives the results and decides what to do next.
-                            continue;
+
+                            // If only external tools (fs_*, suggest_edit), return to Client
+                            // Fire background reflection (non-blocking)
+                            if (userId) {
+                                const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
+                                // extractAndStoreReflections(userId, workspaceId, snippet, userMemories, chatSessionId).catch(() => { });
+                            }
+
+                            // Stream "Tool Calls" event for client to execute
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                                type: "tool_calls",
+                                toolCalls: externalCalls.map(tc => ({
+                                    id: tc.id,
+                                    name: tc.name,
+                                    args: tc.args
+                                })),
+                                content: typeof response.content === "string" ? response.content : ""
+                            })}\n\n`));
+
+                            controller.close();
+                            return;
                         }
 
-                        // If only external tools (fs_*, suggest_edit), return to Client
+                        // No tools called -> Send the final text response (already generated by invoke)
+                        const content = typeof response.content === "string" ? response.content : "";
+
                         // Fire background reflection (non-blocking)
                         if (userId) {
                             const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
-                            // extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
+                            // extractAndStoreReflections(userId, workspaceId, snippet, userMemories, chatSessionId).catch(() => { });
                         }
 
-                        // Stream "Tool Calls" event for client to execute
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                            type: "tool_calls",
-                            toolCalls: externalCalls.map(tc => ({
-                                id: tc.id,
-                                name: tc.name,
-                                args: tc.args
-                            })),
-                            content: typeof response.content === "string" ? response.content : ""
-                        })}\n\n`));
-
+                        if (content) {
+                            // Send token by token simulating stream or just send it all
+                            // For better UX with typing effect on client, we could split it, 
+                            // but sending it all at once is fine and faster.
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
+                        }
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
                         controller.close();
                         return;
                     }
 
-                    // No tools called -> Stream the final text response
-                    const streamResponse = await controllerWithTools.stream(lcMessages);
-
-                    // Fire background reflection (non-blocking)
-                    if (userId) {
-                        const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
-                        // extractAndStoreReflections(userId, workspaceId, snippet, userMemories).catch(() => { });
-                    }
-
-                    for await (const chunk of streamResponse) {
-                        const content = typeof chunk.content === "string" ? chunk.content : "";
-                        if (content) {
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
-                        }
-                    }
-                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+                    // Fallback if loop limit reached
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: "Agent iteration limit reached." })}\n\n`));
                     controller.close();
-                    return;
-                }
 
-                // Fallback if loop limit reached
-                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: "Agent iteration limit reached." })}\n\n`));
-                controller.close();
+                }, {
+                    name: "Agent Loop",
+                    metadata: { session_id: effectiveSessionId },
+                    project_name: process.env.LANGCHAIN_PROJECT || "Zerodraft"
+                });
+
+                await runAgenticLoop();
 
             } catch (error: any) {
                 console.error("Chat API error:", error);

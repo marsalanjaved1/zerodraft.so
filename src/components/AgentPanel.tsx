@@ -357,11 +357,16 @@ export function AgentPanel({
     // Main agentic loop - executes tools and continues until done
     const runAgenticLoop = useCallback(async (
         initialMessages: Message[],
-        onMessagesUpdate: (msgs: Message[]) => void
+        onMessagesUpdate: (msgs: Message[]) => void,
+        explicitSessionId?: string
     ) => {
         let currentMessages = [...initialMessages];
         let loopCount = 0;
         const maxLoops = 10; // Safety limit
+
+        // Use explicit, prop, or state ID - in that order
+        const effectiveSessionId = explicitSessionId || chatSessionId || currentSessionId;
+        console.log("[AgentPanel] runAgenticLoop starting. ExplicitID:", explicitSessionId, "EffectiveID:", effectiveSessionId);
 
         while (loopCount < maxLoops && !shouldStop) {
             loopCount++;
@@ -396,11 +401,15 @@ export function AgentPanel({
                             content: m.content,
                             tool_call_id: m.tool_call_id,
                             name: m.name,
-                        })),
+                        })).filter(m =>
+                            m.role !== "assistant" ||
+                            (m.content && m.content.trim() !== "") ||
+                            m.tool_call_id
+                        ),
                         model: selectedModel,
                         workspaceId,
                         fileId: selectedFile?.id,
-                        chatSessionId,
+                        chatSessionId: effectiveSessionId,
                         folderTree,
                         currentFile: selectedFile ? {
                             name: selectedFile.name,
@@ -613,13 +622,25 @@ export function AgentPanel({
                                     updateToolStatus("completed", `Wrote ${args.content?.length || 0} chars to ${selectedFile!.name}`);
                                     onRefreshFiles?.();
                                 }
+                                // FIX: Handle fs_append_file for active file
+                                else if (toolCall.name === "fs_append_file" && isCurrentFile) {
+                                    console.log("AgentPanel: Appending to active file in-memory", selectedFile!.name);
+                                    if (args.content) {
+                                        editorContentRef.current = (editorContentRef.current || "") + "\n" + args.content;
+                                    }
+                                    executeFileSystemTool(workspaceId, toolCall.name, args).catch(
+                                        err => console.warn("Async DB sync failed:", err)
+                                    );
+                                    updateToolStatus("completed", `Appended ${args.content?.length || 0} chars to ${selectedFile!.name}`);
+                                    onRefreshFiles?.();
+                                }
                                 else {
                                     // Non-active file: execute server-side as normal
                                     const result = await executeFileSystemTool(workspaceId, toolCall.name, args);
                                     updateToolStatus("completed", result);
 
                                     // Refresh sidebar after file creation/write operations
-                                    if (toolCall.name === "fs_write_file" &&
+                                    if ((toolCall.name === "fs_write_file" || toolCall.name === "fs_append_file") &&
                                         result && !result.includes("Error")) {
                                         onRefreshFiles?.();
                                     }
@@ -682,7 +703,7 @@ export function AgentPanel({
         }
 
         return currentMessages;
-    }, [currentFiles, selectedFile, workspaceId, chatSessionId, shouldStop, onFilesChange]);
+    }, [currentFiles, selectedFile, workspaceId, chatSessionId, currentSessionId, shouldStop, onFilesChange, selectedModel]);
 
     const handleSubmit = async () => {
         if (!input.trim() || isLoading || isExecuting) return;
@@ -707,23 +728,31 @@ export function AgentPanel({
             let sessionId = currentSessionId;
             if (!sessionId) {
                 const title = input.slice(0, 30) + (input.length > 30 ? "..." : "");
-                sessionId = await createNewSession(title);
+                console.log("[AgentPanel] Creating new session with title:", title);
+                sessionId = await createNewSession(title) || undefined;
+                console.log("[AgentPanel] New session created. ID:", sessionId);
+            } else {
+                console.log("[AgentPanel] Using existing session ID:", sessionId);
             }
 
             if (sessionId) {
                 // Save user message
                 saveMessageToDb(userMessage, sessionId);
 
+                console.log("[AgentPanel] Starting agentic loop with session ID:", sessionId);
                 await runAgenticLoop(newMessages, (updatedMessages) => {
                     setMessages(updatedMessages);
                     // Save assistant message as it updates
                     const lastMsg = updatedMessages[updatedMessages.length - 1];
                     if (lastMsg && lastMsg.role === 'assistant' && sessionId) {
+                        // Only save explicitly IF we have content or tool calls 
+                        // (though filtering happens further down, this is DB save)
                         saveMessageToDb(lastMsg, sessionId);
                     }
-                });
+                }, sessionId); // Pass the explicit session ID
             } else {
                 // Fallback without persistence if session creation fails
+                console.warn("[AgentPanel] Session creation failed or ID missing. Running without persistence.");
                 await runAgenticLoop(newMessages, setMessages);
             }
         } finally {
@@ -1150,7 +1179,7 @@ export function AgentPanel({
 
 
                     {/* Model Selector Footer */}
-                    <div className="p-3 border-t border-gray-200 bg-white relative">
+                    <div className="p-3 border-t border-gray-200 bg-white relative" style={{ overflow: 'visible' }}>
                         <button
                             onClick={() => setShowModelMenu(!showModelMenu)}
                             className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs"
@@ -1164,7 +1193,7 @@ export function AgentPanel({
 
                         {/* Model Dropdown Menu */}
                         {showModelMenu && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 mx-3 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden z-50">
+                            <div className="absolute bottom-full left-0 right-0 mb-1 mx-3 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden" style={{ zIndex: 9999 }}>
                                 {MODELS.map((model) => (
                                     <button
                                         key={model.id}
@@ -1195,15 +1224,22 @@ function getToolDisplayName(name: string): string {
     const names: Record<string, string> = {
         "fs_read_file": "Reading document",
         "fs_list_directory": "Browsing files",
+        "fs_list_workplace": "Browsing workspace",
+        "fs_find_file": "Searching for file",
+        "fs_search_content": "Searching file contents",
         "fs_write_file": "Creating document",
-        // fs_update_file removed
-        "search_files": "Searching",
+        "fs_append_file": "Adding to document",
+        "fs_update_file": "Updating document",
+        "fs_delete_file": "Deleting file",
+        "search_files": "Searching files",
         "web_search": "Searching the web",
-        "insert_text": "Adding text",
-        "replace_selection": "Replacing text",
-        "suggest_edit": "Editing document",
+        "consult_writer": "Writing content",
+        "insert_text": "Inserting into editor",
+        "replace_selection": "Replacing selection",
+        "suggest_edit": "Suggesting an edit",
         "add_comment": "Adding a note",
-        "open_file_in_editor": "Opening document",
+        "open_file_in_editor": "Opening in editor",
+        "notify_user": "Sending update",
     };
     return names[name] || "Working...";
 }
@@ -1211,17 +1247,26 @@ function getToolDisplayName(name: string): string {
 function formatToolArgs(name: string, args: string): string {
     try {
         const parsed = JSON.parse(args);
-        if (name === "fs_read_file") return parsed.path;
-        if (name === "fs_list_directory") return parsed.path || "/";
-        if (name === "fs_write_file") return parsed.path;
-        // fs_update_file removed
-        if (name === "search_files") return `"${parsed.query}"`;
-        if (name === "suggest_edit") return `Editing text`;
-        if (name === "suggest_insertion") return `After line ${parsed.after_line}`;
-        if (name === "add_comment") return parsed.comment?.slice(0, 50) || "";
-        if (name === "open_file_in_editor") return parsed.filename;
-        if (name === "insert_text") return parsed.text?.slice(0, 50) || "";
-        return "";
+        switch (name) {
+            case "fs_read_file": return parsed.path || parsed.filename || "";
+            case "fs_list_directory":
+            case "fs_list_workplace": return parsed.path || "/";
+            case "fs_find_file": return parsed.pattern || "";
+            case "fs_search_content": return `"${parsed.query || ""}"`;
+            case "fs_write_file": return parsed.path || "";
+            case "fs_append_file": return parsed.path || "";
+            case "fs_update_file": return parsed.path || "";
+            case "fs_delete_file": return parsed.path || parsed.id || "";
+            case "search_files": return `"${parsed.query || ""}"`;
+            case "web_search": return `"${parsed.query?.slice(0, 60) || ""}"`;
+            case "consult_writer": return parsed.instructions?.slice(0, 80) || parsed.task?.slice(0, 80) || "Drafting content...";
+            case "suggest_edit": return parsed.search_text?.slice(0, 50) || "Applying changes";
+            case "insert_text": return parsed.text?.slice(0, 50) || "";
+            case "add_comment": return parsed.comment?.slice(0, 50) || "";
+            case "open_file_in_editor": return parsed.filename || parsed.path || "";
+            case "notify_user": return parsed.message?.slice(0, 60) || "";
+            default: return "";
+        }
     } catch {
         return "";
     }

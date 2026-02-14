@@ -44,6 +44,7 @@ export async function POST(req: Request) {
             modelName: model || "anthropic/claude-haiku-4.5",
             maxTokens: 100,
             temperature: 0.7,
+            tags: ["ghost-text", "zerodraft"],
             configuration: {
                 baseURL: "https://openrouter.ai/api/v1",
                 apiKey: process.env.OPENROUTER_API_KEY,

@@ -65,7 +65,8 @@ export async function extractAndStoreReflections(
     userId: string,
     workspaceId: string | undefined,
     conversationSnippet: string,
-    existingMemories: Memory[]
+    existingMemories: Memory[],
+    threadId?: string
 ): Promise<void> {
     try {
         // Use a cheap, fast model for reflection
@@ -73,6 +74,8 @@ export async function extractAndStoreReflections(
             modelName: "anthropic/claude-haiku-4.5",
             temperature: 0,
             maxTokens: 1024,
+            tags: ["reflection", "zerodraft"],
+            metadata: threadId ? { session_id: threadId } : undefined,
             configuration: {
                 baseURL: "https://openrouter.ai/api/v1",
                 apiKey: process.env.OPENROUTER_API_KEY,

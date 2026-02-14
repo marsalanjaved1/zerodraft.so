@@ -21,7 +21,18 @@ export async function executeFileSystemTool(workspaceId: string, toolName: strin
                 return await fs.searchContent(args.query);
             case "fs_create_file":
             case "fs_write_file":
-                return await fs.createFile(args.path, args.content);
+                console.log(`[FileSystem] Writing file: ${args.path}`);
+                try {
+                    const result = await fs.writeFile(args.path, args.content);
+                    console.log(`[FileSystem] Successfully wrote file: ${args.path}`);
+                    return result;
+                } catch (e: any) {
+                    console.error(`[FileSystem] Error writing file ${args.path}:`, e);
+                    throw e; // Re-throw to be caught by outer catch
+                }
+            case "fs_append_file":
+                console.log(`[FileSystem] Appending to file: ${args.path}`);
+                return await fs.appendFile(args.path, args.content);
             case "fs_update_file":
                 if (args.search_text) {
                     return await fs.patchFile(args.path, args.search_text, args.replacement_text);

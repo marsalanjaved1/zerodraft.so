@@ -74,13 +74,16 @@ export async function generatePlan(
         openFileName?: string;
         hasSelection?: boolean;
         fileCount?: number;
-    }
+    },
+    threadId?: string
 ): Promise<ExecutionPlan> {
     try {
         const llm = new ChatOpenAI({
             modelName: "anthropic/claude-haiku-4.5",
             temperature: 0,
             maxTokens: 512,
+            tags: ["planner", "zerodraft"],
+            metadata: threadId ? { session_id: threadId } : undefined,
             configuration: {
                 baseURL: "https://openrouter.ai/api/v1",
                 apiKey: process.env.OPENROUTER_API_KEY,

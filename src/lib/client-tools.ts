@@ -233,6 +233,29 @@ export function executeTool(
             };
         }
 
+        case "fs_append_file": {
+            const existing = findFile(files, args.path);
+            let updatedFiles: FileNode[];
+
+            if (existing) {
+                const newContent = (existing.content || "") + args.content;
+                updatedFiles = updateFileContent(files, args.path, newContent);
+                return {
+                    success: true,
+                    result: `Successfully appended to ${args.path}`,
+                    updatedFiles
+                };
+            } else {
+                // If file doesn't exist, create it (append acts like write)
+                updatedFiles = createFile(files, args.path, args.content);
+                return {
+                    success: true,
+                    result: `Created and wrote to ${args.path} (file did not exist)`,
+                    updatedFiles
+                };
+            }
+        }
+
         case "fs_update_file": {
             const file = findFile(files, args.path);
             if (!file) {
