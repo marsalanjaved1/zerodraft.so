@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { AgentAnimation } from "@/components/AgentAnimation";
 import { User } from "@supabase/supabase-js";
+import { PricingSection } from "@/components/PricingSection";
 
 interface HomeClientProps {
     user: User | null;
@@ -31,6 +32,9 @@ export default function HomeClient({ user }: HomeClientProps) {
                         </Link>
                         <Link className="text-sm font-medium text-[#616f89] hover:text-primary transition-colors" href="#features">
                             Features
+                        </Link>
+                        <Link className="text-sm font-medium text-[#616f89] hover:text-primary transition-colors" href="#pricing">
+                            Pricing
                         </Link>
                     </nav>
                     <div className="flex items-center gap-4">
@@ -138,8 +142,8 @@ export default function HomeClient({ user }: HomeClientProps) {
                                 <button
                                     onClick={() => setActiveTab("pm")}
                                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "pm"
-                                            ? "bg-white text-[#111318] shadow-sm"
-                                            : "text-[#616f89] hover:text-[#111318]"
+                                        ? "bg-white text-[#111318] shadow-sm"
+                                        : "text-[#616f89] hover:text-[#111318]"
                                         }`}
                                 >
                                     <span className="material-symbols-outlined text-base">dashboard</span>
@@ -148,8 +152,8 @@ export default function HomeClient({ user }: HomeClientProps) {
                                 <button
                                     onClick={() => setActiveTab("fiction")}
                                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "fiction"
-                                            ? "bg-white text-[#111318] shadow-sm"
-                                            : "text-[#616f89] hover:text-[#111318]"
+                                        ? "bg-white text-[#111318] shadow-sm"
+                                        : "text-[#616f89] hover:text-[#111318]"
                                         }`}
                                 >
                                     <span className="material-symbols-outlined text-base">auto_stories</span>
@@ -315,6 +319,9 @@ export default function HomeClient({ user }: HomeClientProps) {
                         </div>
                     </div>
                 </section>
+
+                {/* Pricing Section */}
+                <PricingSection user={user} />
 
                 {/* Final CTA */}
                 <section className="mx-auto max-w-7xl px-6 py-24 text-center lg:px-10 lg:py-32">

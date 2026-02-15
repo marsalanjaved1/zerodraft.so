@@ -9,6 +9,8 @@ import { tool } from "@langchain/core/tools";
 
 import { FileSystem } from "@/lib/server/file-system";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
+import { checkCredits, deductCredits } from "@/lib/credits";
 import {
     extractAndStoreReflections,
     fetchMemories,
@@ -355,6 +357,40 @@ export async function POST(req: Request) {
     } catch {
         console.warn("[Memory] Could not get authenticated user, skipping memory.");
     }
+
+    // --- CREDIT CHECK & DEDUCTION ---
+    if (!userId) {
+        return new Response(JSON.stringify({ error: "Unauthorized: Please sign in to use ZeroDraft." }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+
+    const supabaseAdmin = createSupabaseAdmin(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    try {
+        const { allowed, error } = await checkCredits(supabaseAdmin, userId, selectedModel);
+        if (!allowed) {
+            return new Response(JSON.stringify({ error }), {
+                status: 402,
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+
+        // Deduct credits for the turn
+        await deductCredits(supabaseAdmin, userId, selectedModel, effectiveSessionId);
+    } catch (err: any) {
+        console.error("[Credits] Error checking/deducting credits:", err);
+        // Fail open or closed? detailed error suggests fail closed for billing.
+        return new Response(JSON.stringify({ error: "Billing system error. Please try again." }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" }
+        });
+    }
+    // --------------------------------
 
     // 1. Controller Setup
     let systemPrompt = buildControllerSystemPrompt(folderTree || "", currentFile, undefined);

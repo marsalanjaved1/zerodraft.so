@@ -7,8 +7,11 @@ import {
     Sparkles,
     Zap,
     Brain,
-    Bot
+    Bot,
+    Lock
 } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { CREDIT_MULTIPLIERS } from '@/lib/credits';
 
 // ============ AI Model Definition ============
 export interface AIModel {
@@ -25,7 +28,7 @@ export interface AIModel {
 // ============ Available Models ============
 export const availableModels: AIModel[] = [
     {
-        id: 'gpt-4o',
+        id: 'openai/gpt-4o',
         name: 'GPT-4o',
         provider: 'openai',
         description: 'Most capable OpenAI model',
@@ -35,17 +38,17 @@ export const availableModels: AIModel[] = [
         costTier: 'high',
     },
     {
-        id: 'gpt-4o-mini',
+        id: 'openai/gpt-4o-mini',
         name: 'GPT-4o Mini',
         provider: 'openai',
         description: 'Fast and affordable',
         icon: <Zap className="w-4 h-4" />,
         capabilities: ['chat', 'code', 'fast'],
         contextLength: 128000,
-        costTier: 'low',
+        costTier: 'free',
     },
     {
-        id: 'claude-3-5-sonnet',
+        id: 'anthropic/claude-3.5-sonnet',
         name: 'Claude 3.5 Sonnet',
         provider: 'anthropic',
         description: 'Best for complex reasoning',
@@ -55,7 +58,7 @@ export const availableModels: AIModel[] = [
         costTier: 'medium',
     },
     {
-        id: 'claude-3-5-haiku',
+        id: 'anthropic/claude-3.5-haiku',
         name: 'Claude 3.5 Haiku',
         provider: 'anthropic',
         description: 'Fast and efficient',
@@ -65,24 +68,64 @@ export const availableModels: AIModel[] = [
         costTier: 'low',
     },
     {
-        id: 'deepseek-chat',
+        id: 'deepseek/deepseek-chat',
         name: 'DeepSeek V3',
         provider: 'openrouter',
         description: 'Great for coding tasks',
         icon: <Bot className="w-4 h-4" />,
         capabilities: ['chat', 'code', 'fast'],
         contextLength: 128000,
-        costTier: 'low',
+        costTier: 'free',
     },
     {
-        id: 'llama-3.3-70b',
+        id: 'meta-llama/llama-3.3-70b-instruct',
         name: 'Llama 3.3 70B',
         provider: 'openrouter',
         description: 'Open source powerhouse',
         icon: <Bot className="w-4 h-4" />,
         capabilities: ['chat', 'code'],
         contextLength: 128000,
+        costTier: 'free',
+    },
+    {
+        id: 'google/gemini-flash-1.5',
+        name: 'Gemini Flash 1.5',
+        provider: 'openrouter',
+        description: 'Multimodal speed demon',
+        icon: <Zap className="w-4 h-4" />,
+        capabilities: ['chat', 'code', 'vision', 'fast'],
+        contextLength: 1000000,
+        costTier: 'free',
+    },
+    {
+        id: 'minimax/minimax-m2.5',
+        name: 'Minimax M2.5',
+        provider: 'openrouter',
+        description: 'Productivity & Coding',
+        icon: <Bot className="w-4 h-4" />,
+        capabilities: ['chat', 'code', 'fast'],
+        contextLength: 205000,
+        costTier: 'free',
+    },
+    {
+        id: 'moonshotai/kimi-k2-thinking',
+        name: 'Kimi k2 Thinking',
+        provider: 'openrouter',
+        description: 'Advanced Reasoning',
+        icon: <Brain className="w-4 h-4" />,
+        capabilities: ['chat', 'code'],
+        contextLength: 256000,
         costTier: 'low',
+    },
+    {
+        id: 'google/gemini-2.0-flash-001',
+        name: 'Gemini 2.0 Flash',
+        provider: 'openrouter',
+        description: 'Ultra-fast multimodal',
+        icon: <Zap className="w-4 h-4" />,
+        capabilities: ['chat', 'code', 'vision', 'fast'],
+        contextLength: 1000000,
+        costTier: 'free',
     },
 ];
 
@@ -92,16 +135,25 @@ interface ModelSelectorProps {
     onModelChange: (modelId: string) => void;
     models?: AIModel[];
     compact?: boolean;
+    direction?: 'up' | 'down';
 }
 
 export function ModelSelector({
     selectedModel,
     onModelChange,
     models = availableModels,
-    compact = false
+    compact = false,
+    direction = 'down'
 }: ModelSelectorProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const { isModelAllowed, plan } = useSubscription();
+
+    // Filter models based on selection or default
     const currentModel = models.find(m => m.id === selectedModel) || models[0];
+
+    const dropdownPosition = direction === 'up'
+        ? 'bottom-full mb-1'
+        : 'top-full mt-1';
 
     const getCostBadge = (tier: AIModel['costTier']) => {
         const colors = {
@@ -122,14 +174,14 @@ export function ModelSelector({
         <div className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 bg-[#3c3c3c] hover:bg-[#4c4c4c] rounded transition-colors ${compact ? 'px-2 py-1' : 'px-3 py-1.5'
+                className={`flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200 rounded transition-colors ${compact ? 'px-2 py-1' : 'px-3 py-1.5'
                     }`}
             >
-                <span className="text-[#007acc]">{currentModel.icon}</span>
-                <span className={`text-[#cccccc] ${compact ? 'text-[10px]' : 'text-xs'}`}>
+                <span className="text-blue-600">{currentModel.icon}</span>
+                <span className={`text-gray-700 font-medium ${compact ? 'text-[10px]' : 'text-xs'}`}>
                     {currentModel.name}
                 </span>
-                <ChevronDown className={`text-[#858585] ${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
+                <ChevronDown className={`text-gray-400 ${compact ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
             </button>
 
             {isOpen && (
@@ -138,51 +190,70 @@ export function ModelSelector({
                         className="fixed inset-0 z-40"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute right-0 top-full mt-1 w-72 bg-[#252526] border border-[#3c3c3c] rounded-lg shadow-2xl z-50 overflow-hidden">
+                    <div className={`absolute right-0 ${dropdownPosition} w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden`}>
                         {/* Header */}
-                        <div className="px-3 py-2 border-b border-[#3c3c3c]">
-                            <span className="text-xs text-[#858585]">Select Model</span>
+                        <div className="px-3 py-2 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                            <span className="text-xs text-gray-500 font-medium">Select Model</span>
+                            {plan === 'free' && (
+                                <span className="text-[10px] text-blue-600">Default: Economy</span>
+                            )}
                         </div>
 
                         {/* Model List */}
                         <div className="max-h-80 overflow-y-auto py-1">
-                            {models.map(model => (
-                                <button
-                                    key={model.id}
-                                    onClick={() => {
-                                        onModelChange(model.id);
-                                        setIsOpen(false);
-                                    }}
-                                    className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-[#3c3c3c] text-left"
-                                >
-                                    <span className="text-[#007acc] mt-0.5">{model.icon}</span>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-[#cccccc]">{model.name}</span>
-                                            {getCostBadge(model.costTier)}
-                                            {model.id === selectedModel && (
-                                                <Check className="w-3.5 h-3.5 text-[#007acc] ml-auto" />
-                                            )}
-                                        </div>
-                                        <p className="text-[10px] text-[#858585] mt-0.5">{model.description}</p>
-                                        <div className="flex gap-1 mt-1">
-                                            {model.capabilities.map(cap => (
-                                                <span
-                                                    key={cap}
-                                                    className="text-[9px] px-1 py-0.5 bg-[#1e1e1e] text-[#858585] rounded"
-                                                >
-                                                    {cap}
+                            {models.map(model => {
+                                const isAllowed = isModelAllowed(model.id);
+                                const cost = CREDIT_MULTIPLIERS[model.id] || 5;
+
+                                return (
+                                    <button
+                                        key={model.id}
+                                        disabled={!isAllowed}
+                                        onClick={() => {
+                                            if (isAllowed) {
+                                                onModelChange(model.id);
+                                                setIsOpen(false);
+                                            }
+                                        }}
+                                        className={`w-full flex items-start gap-3 px-3 py-2.5 text-left transition-colors ${isAllowed ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-40 cursor-not-allowed'
+                                            }`}
+                                    >
+                                        <span className="text-blue-600 mt-0.5">{model.icon}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-900 font-medium">{model.name}</span>
+                                                {/* Credit Cost Badge */}
+                                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200">
+                                                    {cost} credits
                                                 </span>
-                                            ))}
+
+                                                {model.id === selectedModel && (
+                                                    <Check className="w-3.5 h-3.5 text-blue-600 ml-auto" />
+                                                )}
+                                                {!isAllowed && (
+                                                    <Lock className="w-3 h-3 text-red-400 ml-auto" />
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{model.description}</p>
+                                            <div className="flex gap-1 mt-1">
+                                                {model.capabilities.map(cap => (
+                                                    <span
+                                                        key={cap}
+                                                        className="text-[9px] px-1 py-0.5 bg-gray-100 text-gray-500 rounded border border-gray-200"
+                                                    >
+                                                        {cap}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* Footer */}
-                        <div className="px-3 py-2 border-t border-[#3c3c3c]">
-                            <div className="text-[10px] text-[#858585]">
+                        <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+                            <div className="text-[10px] text-gray-400">
                                 Context: {(currentModel.contextLength / 1000).toFixed(0)}k tokens
                             </div>
                         </div>
@@ -206,7 +277,7 @@ export function ProviderBadge({ provider }: ProviderBadgeProps) {
         local: { label: 'Local', color: 'bg-blue-900/30 text-blue-400' },
     };
 
-    const { label, color } = config[provider];
+    const { label, color } = config[provider] || { label: provider, color: 'bg-gray-700 text-gray-400' };
 
     return (
         <span className={`text-[9px] px-1.5 py-0.5 rounded ${color}`}>

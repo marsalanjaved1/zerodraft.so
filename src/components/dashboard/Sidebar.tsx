@@ -102,6 +102,13 @@ export function Sidebar({ recentWorkspaces = [] }: { recentWorkspaces?: any[] })
                     <span className={`material-symbols-outlined ${isActive('/settings') ? 'fill' : ''}`}>settings</span>
                     <span className="text-sm">Settings</span>
                 </Link>
+                <Link
+                    href="/settings/billing"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive('/settings/billing') ? 'bg-primary/10 text-primary font-medium' : 'text-slate-600 hover:bg-surface-light hover:text-slate-900'}`}
+                >
+                    <span className={`material-symbols-outlined ${isActive('/settings/billing') ? 'fill' : ''}`}>credit_card</span>
+                    <span className="text-sm">Billing</span>
+                </Link>
             </div>
         </aside>
     )

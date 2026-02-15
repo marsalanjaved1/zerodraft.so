@@ -5,9 +5,11 @@ import {
     Bot, User, ArrowUp, Loader2, Check, AlertCircle, X,
     FileText, FolderOpen, Search, PenLine, ChevronDown,
     Copy, FileDown, Sparkles, BookOpen, Square, Play, GitCompare, Target,
-    History, Plus, MessageSquare, Globe, ChevronRight
+    History, Plus, MessageSquare, Globe, ChevronRight, Coins
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { availableModels, ModelSelector, AIModel } from "@/components/ModelSelector";
+import { useSubscription } from "@/hooks/useSubscription";
 import type { FileNode } from "@/lib/types";
 import { executeTool, TOOL_DEFINITIONS } from "@/lib/client-tools";
 import { executeFileSystemTool } from "@/app/actions";
@@ -103,15 +105,7 @@ function buildFolderTree(files: FileNode[], prefix: string = "", seenPaths: Set<
 }
 
 // Available models
-const MODELS = [
-    { id: "anthropic/claude-haiku-4.5", name: "Claude Haiku 4.5", maxTokens: 200000 },
-    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", maxTokens: 200000 },
-    { id: "anthropic/claude-opus-4.5", name: "Claude Opus 4.5", maxTokens: 200000 },
-    { id: "moonshotai/kimi-k2-thinking", name: "Kimi k2 Thinking", maxTokens: 200000 },
-    { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", maxTokens: 1000000 },
-    { id: "deepseek/deepseek-v3.2", name: "DeepSeek v3.2", maxTokens: 64000 },
-    { id: "minimax/minimax-m2.5", name: "Minimax M2.5", maxTokens: 204800 },
-];
+// Local removed, using availableModels from ModelSelector
 
 // Writing tool names (handled client-side)
 const WRITING_TOOLS = ["insert_text", "replace_selection", "suggest_edit", "get_selection", "search_document", "open_file_in_editor"];
@@ -232,8 +226,9 @@ export function AgentPanel({
 
     const [sources, setSources] = useState<Source[]>([]);
     const [currentFiles, setCurrentFiles] = useState<FileNode[]>(files);
-    const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
-    const [showModelMenu, setShowModelMenu] = useState(false);
+    const [selectedModel, setSelectedModel] = useState(availableModels[0].id);
+    // showModelMenu removed, handled by ModelSelector
+    const { remainingCredits, loading: subLoading, refresh: refreshCredits } = useSubscription();
     const [agentMemory, setAgentMemory] = useState<MemoryItem[]>([]);
     const [showMemory, setShowMemory] = useState(false);
     const [contextFiles, setContextFiles] = useState<FileNode[]>([]);
@@ -803,6 +798,7 @@ export function AgentPanel({
             setIsLoading(false);
             setIsExecuting(false);
             abortControllerRef.current = null;
+            refreshCredits();
         }
     };
 
@@ -1131,12 +1127,12 @@ export function AgentPanel({
                                                 fill="none"
                                                 className="text-indigo-500 transition-all duration-300"
                                                 strokeDasharray={37.7}
-                                                strokeDashoffset={37.7 * (1 - Math.min(1, ((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / (MODELS.find(m => m.id === selectedModel)?.maxTokens || 200000)))}
+                                                strokeDashoffset={37.7 * (1 - Math.min(1, ((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / (availableModels.find(m => m.id === selectedModel)?.contextLength || 200000)))}
                                             />
                                         </svg>
                                     </div>
                                     <span className="text-[10px] text-gray-400 font-medium">
-                                        {Math.round(((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / 1000)}k / {Math.round((MODELS.find(m => m.id === selectedModel)?.maxTokens || 200000) / 1000)}k
+                                        {Math.round(((editorContent?.length || 0) / 4 + contextFiles.reduce((acc, f) => acc + (f.content?.length || 0) / 4, 0) + messages.reduce((acc, m) => acc + m.content.length / 4, 0) + 1000) / 1000)}k / {Math.round((availableModels.find(m => m.id === selectedModel)?.contextLength || 200000) / 1000)}k
                                     </span>
                                 </div>
                             )}
@@ -1223,39 +1219,28 @@ export function AgentPanel({
 
 
                     {/* Model Selector Footer */}
-                    <div className="p-3 border-t border-gray-200 bg-white relative" style={{ overflow: 'visible' }}>
-                        <button
-                            onClick={() => setShowModelMenu(!showModelMenu)}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs"
-                        >
-                            <span className="text-gray-500">Model:</span>
-                            <span className="font-medium text-gray-700 flex items-center gap-1">
-                                {MODELS.find(m => m.id === selectedModel)?.name || "Select model"}
-                                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showModelMenu ? 'rotate-180' : ''}`} />
-                            </span>
-                        </button>
+                    <div className="p-3 border-t border-gray-200 bg-white relative flex justify-between items-center" style={{ overflow: 'visible' }}>
+                        <div className="flex items-center gap-3">
+                            <ModelSelector
+                                selectedModel={selectedModel}
+                                onModelChange={setSelectedModel}
+                                compact={true}
+                                direction="up"
+                            />
 
-                        {/* Model Dropdown Menu */}
-                        {showModelMenu && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 mx-3 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden" style={{ zIndex: 9999 }}>
-                                {MODELS.map((model) => (
-                                    <button
-                                        key={model.id}
-                                        onClick={() => {
-                                            setSelectedModel(model.id);
-                                            setShowModelMenu(false);
-                                        }}
-                                        className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 transition-colors flex items-center justify-between ${selectedModel === model.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
-                                            }`}
-                                    >
-                                        <span>{model.name}</span>
-                                        {selectedModel === model.id && (
-                                            <Check className="w-3 h-3 text-indigo-600" />
-                                        )}
-                                    </button>
-                                ))}
+                            {/* Credit Balance */}
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-50 rounded border border-gray-200 text-xs">
+                                <Coins className="w-3.5 h-3.5 text-yellow-500" />
+                                <span className="text-gray-600 font-medium">
+                                    {subLoading ? "..." : (remainingCredits !== undefined ? remainingCredits : 0)}
+                                </span>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Upgrade Prompt or Plan Badge */}
+                        <div className="text-[10px] text-gray-400">
+                            {/* Optional: Add upgrade button here if low on credits */}
+                        </div>
                     </div>
                 </>
             )}
