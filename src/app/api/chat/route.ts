@@ -454,7 +454,7 @@ export async function POST(req: Request) {
         tags: ["controller", "zerodraft"],
         metadata: { session_id: effectiveSessionId },
         timeout: 120000, // 2 minutes timeout for large context processing
-    }).bindTools(controllerTools);
+    });
 
 
 
@@ -697,7 +697,8 @@ export async function POST(req: Request) {
 
                                         } else if (call.name === "web_search") {
                                             // Execute Web Search
-                                            toolOutput = await webSearch.invoke(call.args);
+                                            const { query, domains } = call.args;
+                                            toolOutput = await webSearch(query, 5, domains);
 
                                         } else if (call.name === "plan_execution") {
                                             const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
