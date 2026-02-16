@@ -186,4 +186,36 @@ export const fsListDirectory = new DynamicStructuredTool({
     },
 });
 
-export const fileSystemTools = [fsReadFile, fsWriteFile, fsRename, fsUpdateFile, fsListDirectory];
+
+export const fsReadFileSection = new DynamicStructuredTool({
+    name: "fs_read_file_section",
+    description: "Read a specific section of a file by line numbers. Useful for reading large files without loading the entire content.",
+    schema: z.object({
+        file_path: z.string().describe("Relative path to the file"),
+        start_line: z.number().int().min(1).default(1).describe("Start line number (1-based, inclusive)"),
+        end_line: z.number().int().min(1).default(100).describe("End line number (1-based, inclusive)"),
+    }),
+    func: async ({ file_path, start_line, end_line }) => {
+        try {
+            const fullPath = validatePath(file_path);
+            const content = await fs.readFile(fullPath, "utf-8");
+            const lines = content.split("\n");
+
+            const start = Math.max(0, start_line - 1);
+            const end = Math.min(lines.length, end_line);
+
+            if (start >= lines.length) {
+                return `Error: Start line ${start_line} is beyond file length (${lines.length} lines).`;
+            }
+
+            const selectedLines = lines.slice(start, end);
+            const numberedLines = selectedLines.map((line, index) => `${start + index + 1}: ${line}`);
+
+            return `File: ${file_path} (Lines ${start + 1}-${end} of ${lines.length})\n--------------------------------------------------\n${numberedLines.join("\n")}`;
+        } catch (err: any) {
+            return `Error reading file section: ${err.message}`;
+        }
+    },
+});
+
+export const fileSystemTools = [fsReadFile, fsWriteFile, fsRename, fsUpdateFile, fsListDirectory, fsReadFileSection];

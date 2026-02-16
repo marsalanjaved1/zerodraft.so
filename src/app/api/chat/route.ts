@@ -74,6 +74,31 @@ const fsReadFile = tool(
     }
 );
 
+const fsReadFileSection = tool(
+    async () => "placeholder",
+    {
+        name: "fs_read_file_section",
+        description: "Read a specific section of a file by line numbers. Use this to read part of a large file without loading the whole thing.",
+        schema: z.object({
+            file_path: z.string().describe("Relative path to the file"),
+            start_line: z.number().int().min(1).default(1).describe("Start line (1-based)"),
+            end_line: z.number().int().min(1).default(100).describe("End line (1-based)")
+        })
+    }
+);
+
+const summarizeFile = tool(
+    async () => "placeholder",
+    {
+        name: "summarize_file",
+        description: "Summarize the content of a file. Use this for large files (> 50 lines) to get the key points without filling your context window.",
+        schema: z.object({
+            file_path: z.string().describe("Relative path to the file"),
+            focus: z.string().optional().describe("Specific aspect to focus on (e.g. 'requirements', 'architecture', 'TODOs')")
+        })
+    }
+);
+
 const fsWriteFile = tool(
     async () => "placeholder",
     {
@@ -189,17 +214,28 @@ const webSearchTool = tool(
     }
 );
 
+const planExecutionTool = tool(
+    async () => "placeholder",
+    {
+        name: "plan_execution",
+        description: "Analyze the user's request and generate a step-by-step execution plan. Use this for complex tasks, multi-file edits, or when the goal is ambiguous.",
+        schema: z.object({
+            focus: z.string().optional().describe("Optional area to focus the plan on (e.g., 'backend', 'UI', 'testing')")
+        })
+    }
+);
+
 // Internal tools are executed server-side (not sent to client)
-const INTERNAL_TOOL_NAMES = ["consult_writer", "web_search"];
+const INTERNAL_TOOL_NAMES = ["consult_writer", "web_search", "summarize_file", "plan_execution"];
 
 // Controller sees ALL tools, including the ability to consult the writer
 const controllerTools = [
     // File system
-    fsReadFile, fsWriteFile, fsAppendFile, fsListDirectory,
+    fsReadFile, fsReadFileSection, fsWriteFile, fsAppendFile, fsListDirectory, summarizeFile,
     // Editor/writing
     insertText, replaceSelection, suggestEdit, openFileInEditor,
     // Delegation & research
-    consultWriter, webSearchTool
+    consultWriter, webSearchTool, planExecutionTool
 ];
 
 // Writer Logic
@@ -234,11 +270,31 @@ Before calling \`fs_read_file\`:
 2. If yes, **use the content from the history**. DO NOT re-read it.
 3. Reading the same file twice is a waste of resources.
 
+## SMART CONTEXT RULES (NEW)
+1. **LARGE FILES (> 300 lines):**
+   - **DO NOT** use \`fs_read_file\` to read the whole thing unless absolutely necessary.
+   - Use \`summarize_file\` to get a high-level overview first.
+   - Use \`fs_read_file_section\` to read specific parts (e.g., "lines 1-100" for imports/headers, or "lines 500-600" for a specific function).
+2. **SPECIFIC LOOKUPS:**
+   - If you need to check a specific function or config, use \`fs_read_file_section\`.
+3. **ONLY** use \`fs_read_file\` for small files or when you need to perform a full global find-and-replace.
+4. **NO BLIND BULK READS:**
+   - If the user asks to "read the workspace" or "read all files", **DO NOT** blindly loop through every file.
+   - **STOP** and ask for clarification: "I see [x] files. Would you like me to read all of them, or focus on specific ones?"
+   - Exception: If the user explicitly says "Read all 5 files to understand the context", then you may proceed. But defaulting to reading 50 files is forbidden.
+
 ## YOUR ROLE
 You do NOT write long-form content yourself. You are the project manager.
 - **User wants a file?** -> You find it.
 - **User wants to check a fact?** -> You read the file.
 - **User wants to WRITE, DRAFT, or EDIT prose?** -> **You call \`consult_writer\`.**
+- **User has a COMPLEX REQUEST (multi-step, ambiguous)?** -> **You call \`plan_execution\`.**
+
+## PLANNING RULE (CRITICAL)
+If the user's request involves multiple files, creating a complex feature, or is ambiguous:
+1. **CALL \`plan_execution\` FIRST.**
+2. Follow the steps provided by the planner.
+3. Do NOT try to guess or wing it. Get a plan.
 
 ## THE SPECIALIST WRITER
 You have a tool called \`consult_writer\`. USE IT.
@@ -252,6 +308,8 @@ You CANNOT generate long content yourself. You MUST use the Specialist Writer fo
 If the user asks for a "comprehensive guide" or "long document":
 1. **DIVIDE THE WORK:** Break it into SMALL, manageable chunks (e.g., "Introduction only", "Section 1 only").
    - **MAXIMUM 800 WORDS** per Writer call. Do not ask for the whole document at once.
+   - **FORBIDDEN:** "Write Day 1, Day 2, and Day 3." -> **WRONG.** The Writer will generate too much text and CRASH.
+   - **CORRECT:** "Write Day 1." -> Save. -> "Write Day 2." -> Append.
 2. **ITERATE STRICTLY:**
    - **Step 1:** Call \`consult_writer\` for "Introduction" (max 800 words) -> Save to file (\`fs_write_file\`).
    - **Step 2:** Call \`consult_writer\` for "Section 1" (max 800 words) -> **APPEND** to file (\`fs_append_file\`).
@@ -313,26 +371,28 @@ ${memory ? `### Memory
 ## COMMUNICATION STYLE (IMPORTANT)
 You are NOT a silent robot. You are a helpful, conversational assistant.
 **Between every tool call, provide a brief message explaining what you're doing and what you found.**
-- ✅ "Great, I found your resume. Let me read through it to understand your background..."
-- ✅ "Interesting — you have strong experience in fintech but limited people-management examples. Let me research questions around that gap..."
-- ✅ "I've drafted the introduction section. Now I'll work on the STAR-format examples..."
-- ❌ Do NOT just silently call tools without any chat message.
-- ❌ Do NOT only say "Working..." or "Searching..."
+-"Great, I foundå your resume. Let me read through it to understand your background..."
+- "Interesting — you have strong experience in fintech but limited people-management examples. Let me research questions around that gap..."
+- "I've drafted the introduction section. Now I'll work on the STAR-format examples..."
+- Do NOT just silently call tools without any chat message.
+- Do NOT only say "Working..." or "Searching..."
 Keep narration concise (1-2 sentences). Do NOT write essays between tool calls.
 
 ## EXECUTION RULES
 1. **Analyze the Request:** Understand the goal and constraints.
-2. **No Research Loops:** Do not search for the same topic twice. If you have enough info, START WRITING.
-3. **Handle Facts:** If a file read fails, do not assume it exists. Check the file list or ask the user.
-4. **Output Handling:** DO NOT output the Writer's text in your chat response. You MUST use \`suggest_edit\` or \`insert_text\` to put it in the file.
-5. **Creative Writing:** If the user wants to WRITE/DRAFT -> Call \`consult_writer\`.
-6. **Task Handling:** If the user asks for a task you can't do, explain why.
+2. **Complex?** -> Call \`plan_execution\` first.
+3. **No Research Loops:** Do not search for the same topic twice. If you have enough info, START WRITING.
+4. **Handle Facts:** If a file read fails, do not assume it exists. Check the file list or ask the user.
+5. **Output Handling:** DO NOT output the Writer's text in your chat response. You MUST use \`suggest_edit\` or \`insert_text\` to put it in the file.
+6. **Creative Writing:** If the user wants to WRITE/DRAFT -> Call \`consult_writer\`.
+7. **Task Handling:** If the user asks for a task you can't do, explain why.
 
 ## EXECUTION
 1. Analyze the Request.
-2. If it requires creative writing/editing -> Call \`consult_writer\`.
-3. If it requires file ops -> Call \`fs_*\` tools.
-4. Once you have the text from the Writer, apply it using \`suggest_edit\`. DO NOT copy it into the chat (unless the user explicitly asked for a chat answer).
+2. If complex -> Call \`plan_execution\`.
+3. If it requires creative writing/editing -> Call \`consult_writer\`.
+4. If it requires file ops -> Call \`fs_*\` tools.
+5. Once you have the text from the Writer, apply it using \`suggest_edit\`. DO NOT copy it into the chat (unless the user explicitly asked for a chat answer).
 `;
 }
 
@@ -380,37 +440,38 @@ export async function POST(req: Request) {
         }
     }
 
-
-
-    // Use the selected model for the Controller (it needs to be smart enough to use tools)
+    // 1. Controller LLM (Orchestrator) - Uses env var or fast default
+    // This model handles tool calls, file logic, and context understanding
+    const controllerModelName = process.env.ORCHESTRATOR_MODEL || "anthropic/claude-3.5-sonnet";
     const controllerLLM = new ChatOpenAI({
-        modelName: selectedModel,
-        temperature: 0, // Strict for logic
-        maxTokens: 8192,
+        modelName: controllerModelName,
+        temperature: 0, // Keep strict for tool use
+        maxTokens: 12288, // Increased for large file writes
+        configuration: {
+            baseURL: "https://openrouter.ai/api/v1",
+            apiKey: process.env.OPENROUTER_API_KEY,
+        },
         tags: ["controller", "zerodraft"],
-        metadata: {
-            session_id: effectiveSessionId,
-        },
-        configuration: {
-            baseURL: "https://openrouter.ai/api/v1",
-            apiKey: process.env.OPENROUTER_API_KEY,
-        },
-    });
+        metadata: { session_id: effectiveSessionId },
+        timeout: 120000, // 2 minutes timeout for large context processing
+    }).bindTools(controllerTools);
 
-    // 2. Writer Setup (Can use a different model or the same one with higher temp)
-    // For now, we use the same model but with a specialized prompt and higher temperature for creativity
+
+
+    // 2. Writer LLM (Creative) - Uses User Selected Model
+    // This model generates the actual prose content
+    const writerModelName = selectedModel;
     const writerLLM = new ChatOpenAI({
-        modelName: selectedModel, // Or "anthropic/claude-3-opus" if available/context allows
-        temperature: 0.7, // Creative for writing
+        modelName: writerModelName,
+        temperature: 0.7, // Creative
         maxTokens: 8192,
-        tags: ["writer", "specialist", "zerodraft"],
-        metadata: {
-            session_id: effectiveSessionId,
-        },
         configuration: {
             baseURL: "https://openrouter.ai/api/v1",
             apiKey: process.env.OPENROUTER_API_KEY,
         },
+        tags: ["writer", "specialist", "zerodraft"],
+        metadata: { session_id: effectiveSessionId },
+        timeout: 120000, // 2 minutes timeout
     });
 
     const lcMessages: any[] = [new SystemMessage(systemPrompt)];
@@ -506,36 +567,6 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
         async start(controller) {
             try {
-                // 1c. Generate execution plan (streaming)
-                if (!toolResults || toolResults.length === 0) {
-                    try {
-                        const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
-                        if (lastUserMsg) {
-                            const plan = await generatePlan(
-                                typeof lastUserMsg.content === "string" ? lastUserMsg.content : "",
-                                {
-                                    hasOpenFile: currentFile !== null && currentFile !== undefined,
-                                    openFileName: currentFile?.name,
-                                    hasSelection: false,
-                                    fileCount: folderTree ? folderTree.split("\n").length : 0,
-                                },
-                                effectiveSessionId // Pass threadId
-                            );
-
-                            // Stream "Planning" event
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "planning", plan })}\n\n`));
-
-                            // Update System Prompt with Plan
-                            const planText = formatPlanForPrompt(plan);
-                            if (lcMessages[0] instanceof SystemMessage) {
-                                lcMessages[0] = new SystemMessage(`${lcMessages[0].content}\n\n${planText}`);
-                            }
-                        }
-                    } catch (err) {
-                        console.warn("[Planner] Failed to generate plan:", err);
-                    }
-                }
-
                 // Filter tools based on feature flags
                 const activeTools = webSearchEnabled
                     ? controllerTools
@@ -549,14 +580,61 @@ export async function POST(req: Request) {
                 const runAgenticLoop = traceable(async () => {
                     let loopCount = 0;
                     const MAX_LOOPS = 8;
+                    let lastToolCallSignature = "";
 
                     while (loopCount < MAX_LOOPS) {
                         loopCount++;
 
-                        // Invoke Controller
-                        // We use invoke() because we need to see if it calls tools or returns text.
-                        // If we wanted to stream the "thinking" (text before tool call), update this to stream.
-                        const response = await controllerWithTools.invoke(lcMessages);
+                        // Invoke Controller with Retry Logic
+                        let response;
+                        let retryCount = 0;
+                        while (true) {
+                            try {
+                                console.log(`[AgentLoop] Invoking controller (Loop ${loopCount})...`);
+                                const startTime = Date.now();
+                                response = await controllerWithTools.invoke(lcMessages);
+                                console.log(`[AgentLoop] Controller response received in ${Date.now() - startTime}ms`);
+                                break;
+                            } catch (error) {
+                                retryCount++;
+                                if (retryCount >= 3) throw error;
+                                console.warn(`[AgentLoop] Controller invocation failed, retrying (${retryCount}/3)...`);
+                                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+                            }
+                        }
+
+                        // Loop Detection
+                        if (response.tool_calls && response.tool_calls.length > 0) {
+                            const currentSignature = JSON.stringify(response.tool_calls.map((tc: any) => ({ name: tc.name, args: tc.args })));
+
+                            // 1. Check local loop (within this request's execution loop)
+                            if (currentSignature === lastToolCallSignature) {
+                                console.warn(`[AgentLoop] Local loop detected! Stopping execution. Signature: ${currentSignature}`);
+                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: "I seem to be stuck in a loop repeating the same action. Stopping execution." })}\n\n`));
+                                controller.close();
+                                return;
+                            }
+                            lastToolCallSignature = currentSignature;
+
+                            // 2. Check cross-request loop (compare with the last AI message in history)
+                            // This catches cases where the agent returns to client, client executes, and agent calls exact same tool again.
+                            for (let i = lcMessages.length - 1; i >= 0; i--) {
+                                const msg = lcMessages[i];
+                                if (msg instanceof AIMessage && msg.tool_calls && msg.tool_calls.length > 0) {
+                                    const lastHistorySignature = JSON.stringify(msg.tool_calls.map((tc: any) => ({ name: tc.name, args: tc.args })));
+                                    if (currentSignature === lastHistorySignature) {
+                                        console.warn(`[AgentLoop] Cross-request loop detected! Stopping execution. Signature: ${currentSignature}`);
+                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: "I seem to be stuck in a loop repeating the same action. Stopping execution." })}\n\n`));
+                                        controller.close();
+                                        return;
+                                    }
+                                    // Only check the very last AI message with tools. If we go back further, we might block valid repeated actions like "write file" -> "user critique" -> "write file again".
+                                    // We only want to block "write file" -> "write file" (immediate loop).
+                                    break;
+                                }
+                            }
+                        }
+
 
                         // Check for Tool Calls
                         if (response.tool_calls && response.tool_calls.length > 0) {
@@ -591,9 +669,53 @@ export async function POST(req: Request) {
                                         ]);
                                         toolOutput = typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content);
 
+
+                                    } else if (call.name === "summarize_file") {
+                                        // Execute Summarize File
+                                        const { file_path, focus } = call.args;
+                                        try {
+                                            const fs = new FileSystem(workspaceId);
+                                            const content = await fs.readFile(file_path);
+
+                                            // If small, just return it
+                                            if (content.length < 3000) {
+                                                toolOutput = `File is small enough (${content.length} chars). Here is the content:\n${content}`;
+                                            } else {
+                                                console.log(`[AgentLoop] Summarizing file ${file_path} (${content.length} chars)...`);
+                                                // Summarize using Writer LLM
+                                                const summaryPrompt = `Please summarize the following file content.${focus ? ` Focus on: ${focus}` : ""} Keep it under 300 words. Capture key technical details, requirements, and architecture points.\n\nFile: ${file_path}\nContent (truncated):\n${content.slice(0, 50000)}...`;
+                                                const summaryResponse = await writerLLM.invoke([
+                                                    new SystemMessage("You are a technical documentation assistant. Summarize the provided text concisely but preserving key details."),
+                                                    new HumanMessage(summaryPrompt)
+                                                ]);
+                                                toolOutput = typeof summaryResponse.content === 'string' ? summaryResponse.content : JSON.stringify(summaryResponse.content);
+                                            }
+                                        } catch (e: any) {
+                                            toolOutput = `Error summarizing file: ${e.message}`;
+                                        }
+
                                     } else if (call.name === "web_search") {
                                         // Execute Web Search
                                         toolOutput = await webSearch(call.args.query, 5, call.args.domains);
+                                    } else if (call.name === "plan_execution") {
+                                        // Execute Planner
+                                        const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
+                                        const plan = await generatePlan(
+                                            typeof lastUserMsg.content === "string" ? lastUserMsg.content : "",
+                                            {
+                                                hasOpenFile: currentFile !== null && currentFile !== undefined,
+                                                openFileName: currentFile?.name,
+                                                hasSelection: false,
+                                                fileCount: folderTree ? folderTree.split("\n").length : 0,
+                                            },
+                                            effectiveSessionId // Pass threadId
+                                        );
+
+                                        // Stream "Planning" event
+                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "planning", plan })}\n\n`));
+
+                                        // Return plan as tool output
+                                        toolOutput = formatPlanForPrompt(plan);
                                     }
 
                                     // Stream "Tool Result" event (truncated for UI display)
@@ -601,12 +723,15 @@ export async function POST(req: Request) {
                                         ? `Found ${(toolOutput.match(/\*\*/g) || []).length / 2} results for "${call.args.query}"`
                                         : call.name === "consult_writer"
                                             ? `Writer produced ${toolOutput.split(/\s+/).length} words`
-                                            : toolOutput.slice(0, 100);
+                                            : call.name === "plan_execution"
+                                                ? "Plan generated"
+                                                : toolOutput.slice(0, 100);
                                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                                         type: "tool_result",
                                         toolCallId: call.id,
                                         name: call.name,
-                                        result: truncatedResult
+                                        result: truncatedResult,
+                                        full_content: toolOutput
                                     })}\n\n`));
 
                                     lcMessages.push(new ToolMessage({
@@ -615,6 +740,7 @@ export async function POST(req: Request) {
                                         name: call.name
                                     }));
                                 }
+                                console.log(`[AgentLoop] Finished internal tools (Loop ${loopCount}). Continuing loop...`);
                                 // Loop continues! Controller receives the results and decides what to do next.
                                 continue;
                             }
@@ -638,6 +764,7 @@ export async function POST(req: Request) {
                             })}\n\n`));
 
                             controller.close();
+                            console.log(`[AgentLoop] Yielding to client for external tools (Loop ${loopCount}).`);
                             return;
                         }
 
@@ -658,10 +785,13 @@ export async function POST(req: Request) {
                         }
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
                         controller.close();
+                        console.log(`[AgentLoop] Final response sent (Loop ${loopCount}). Done.`);
                         return;
                     }
 
+
                     // Fallback if loop limit reached
+                    console.warn(`[AgentLoop] Limit reached (Loop ${loopCount}). Sending error.`);
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", content: "Agent iteration limit reached." })}\n\n`));
                     controller.close();
 

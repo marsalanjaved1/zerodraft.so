@@ -79,7 +79,7 @@ export async function generatePlan(
 ): Promise<ExecutionPlan> {
     try {
         const llm = new ChatOpenAI({
-            modelName: "anthropic/claude-haiku-4.5",
+            modelName: process.env.PLANNER_MODEL || "anthropic/claude-haiku-4.5",
             temperature: 0,
             maxTokens: 512,
             tags: ["planner", "zerodraft"],

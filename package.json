@@ -1,6 +1,7 @@
 {
   "name": "pmaganer",
   "version": "0.1.0",
+  "description": "An open-source, agentic AI editor for local-first specialized writing workflows.",
   "private": true,
   "scripts": {
     "dev": "next dev",

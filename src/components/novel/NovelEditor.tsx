@@ -300,6 +300,32 @@ export function NovelEditor({
         }
 
         if (foundFrom === null || foundTo === null) {
+            // Fallback: Check if the text exists in the Markdown representation
+            // This handles cases where the agent searches for Markdown syntax (e.g. "## Header", "---")
+            // which doesn't exist in the ProseMirror textContent (where it's structural).
+            const markdown = (editorInstance.storage as any).markdown?.getMarkdown();
+            if (markdown) {
+                const normalizedMd = normalizeForSearch(markdown);
+                if (normalizedMd.includes(normalizedSearch)) {
+                    // It exists in Markdown! We can't easily apply suggest marks to syntax,
+                    // so we fall back to a direct replacement of the content.
+                    const newMarkdown = markdown.replace(
+                        // Escape regex special chars in searchText but convert normalized spaces to \s+
+                        new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+').trim(), 'u'),
+                        replacementText
+                    );
+
+                    if (newMarkdown !== markdown) {
+                        try {
+                            editorInstance.commands.setContent(newMarkdown);
+                            return true;
+                        } catch (e) {
+                            return `Edit failed during Markdown fallback: ${(e as any).message}`;
+                        }
+                    }
+                }
+            }
+
             return `NOT_FOUND: Could not locate the text in the document. The text may have changed.`;
         }
 

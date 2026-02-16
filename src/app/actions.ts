@@ -12,6 +12,18 @@ export async function executeFileSystemTool(workspaceId: string, toolName: strin
             case "fs_read_file":
                 if (overrideContent) return overrideContent;
                 return await fs.readFile(args.path);
+            case "fs_read_file_section": {
+                const content = overrideContent || await fs.readFile(args.file_path);
+                const lines = content.split("\n");
+                const start = Math.max(0, (args.start_line || 1) - 1);
+                const end = Math.min(lines.length, (args.end_line || 100));
+
+                if (start >= lines.length) return `Error: Start line ${args.start_line} is beyond file length.`;
+
+                const selectedLines = lines.slice(start, end);
+                const numberedLines = selectedLines.map((line: string, index: number) => `${start + index + 1}: ${line}`);
+                return `File: ${args.file_path} (Lines ${start + 1}-${end} of ${lines.length})\n--------------------------------------------------\n${numberedLines.join("\n")}`;
+            }
             case "fs_list_workplace":
             case "fs_list_directory":
                 return await fs.listFiles();

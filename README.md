@@ -1,13 +1,16 @@
 <div align="center">
 
-# zerodraft.so
-### The Agentic AI Editor.
+# ZeroDraft
+### The Agentic AI Editor for Local-First Deep Work
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?logo=langchain&logoColor=white)](https://js.langchain.com/)
 
 <p align="center">
-  <img src="public/images/agent_demo.gif" alt="ZeroDraft Agent Working" width="100%">
+  <img src="public/images/agent_demo.gif" alt="ZeroDraft Agent Refactoring Documentation" width="100%">
 </p>
-
-### "It's basically Cursor, but for docs."
 
 [Get Started](#quick-start) · [Roadmap](ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
@@ -15,77 +18,90 @@
 
 ---
 
-## What is this?
+## Overview
 
-**ZeroDraft** is an open-source document workspace with an embedded AI agent that lives in your file system.
+**ZeroDraft** is an open-source, agentic document workspace designed for complex writing tasks. Unlike chat-based AI tools that require constant context switching and copy-pasting, ZeroDraft embeds an autonomous agent directly into your file system.
 
-Most AI writing tools just chat. You copy-paste context, get a response, and paste it back. It's friction.
+It reads your entire project context, writes valid files (markdown, specs, code), and edits existing documents in place. It brings the power of "Cursor" to technical documentation, fiction writing, and research.
 
-ZeroDraft works differently. The agent has **tools**. It can:
-- **Read** your entire project to understand context.
-- **Write** new files (PRDs, specs, blog posts) directly.
-- **Edit** existing documents without you lifting a finger.
+### Why ZeroDraft?
 
-It's a local-first, privacy-focused workspace for deep work.
+-   **Context Awareness:** The agent reads your full directory structure (`src/`, `chapters/`, `notes/`) to understand the broader context of your work.
+-   **Local-First Privacy:** Your data remains on your machine or your private Supabase instance. Support for local LLMs ensures confidentiality for sensitive legal or proprietary documents.
+-   **Agentic Workflow:** ZeroDraft doesn't just chat; it executes tools. It can create file structures, refactor outlines, and generate comprehensive drafts autonomously.
 
-## Features
+## Key Features
 
-- 🤖 **Agentic Workflow**: Don't just prompt. Give commands. "Read the transcripts in /Research and write a memo in /Drafts."
-- 📂 **File System Integration**: Real folders, real files. No abstract "knowledge base" silos.
-- 🔒 **Local First**: Your data stays on your machine (or your own Supabase instance). Bring your own keys.
-- ⚡ **Rich Text Editor**: A Notion-style editor built for long-form writing, not just chat bubbles.
-- 🛠️ **Open Source**: MIT Licensed. Hack it, extend it, make it yours.
+-   **Autonomous File Management:** Give high-level commands like "Read the specs in `/docs` and generate a `README.md`," and watch the agent execute file system operations.
+-   **Rich Text Editor:** A polished, Tiptap-based writing environment that supports standard markdown, slash commands, and seamless AI integration.
+-   **Loop Detection & Correction:** Advanced logic to prevent agentic loops, ensuring reliable execution of complex multi-step tasks.
+-   **Cross-Model Support:** Integration with Vercel AI SDK allows you to bring your own API keys for OpenAI, Anthropic, or local models via OpenRouter.
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- Supabase Account (for auth/database)
-- OpenRouter API Key (for LLMs)
 
-### 1. Clone & Install
-```bash
-git clone https://github.com/marsalanjaved1/zerodraft.so.git
-cd zerodraft
-npm install
-```
+-   Node.js 18+
+-   Supabase Account (for authentication and database)
+-   LLM API Key (OpenAI, Anthropic, or OpenRouter)
 
-### 2. Environment Setup
-Copy the example env file:
-```bash
-cp .env.local.example .env.local
-```
+### Installation
 
-Fill in your keys in `.env.local`:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_key
-OPENROUTER_API_KEY=your_key
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/marsalanjaved1/zerodraft.so.git
+    cd zerodraft
+    ```
 
-### 3. Run Locally
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to see the app.
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
 
-## Project Structure
+3.  **Configure environment:**
+    Copy the example credentials file:
+    ```bash
+    cp .env.local.example .env.local
+    ```
+    Populate `.env.local` with your API keys:
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL=your_process_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+    SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+    OPENROUTER_API_KEY=your_llm_api_key
+    ```
 
-- `/src/components/editor`: The Tiptap-based rich text editor.
-- `/src/lib/agent`: The LangChain agent logic and tool definitions.
-- `/src/app/api/chat`: The Vercel AI SDK route handling streaming responses.
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    Navigate to [http://localhost:3000](http://localhost:3000) to access the application.
+
+## Use Cases
+
+-   **Technical Product Managers:** Keep PRDs, RFCs, and Architecture specs in sync with your codebase.
+-   **Fiction Authors:** Maintain a living "Series Bible" where characters and plot points update automatically as you write.
+-   **Legal & Academic Professionals:** Summarize and synthesize sensitive PDF case files locally without exposing data to public cloud training.
 
 ## Contributing
 
-We love contributors! Whether it's fixing bugs, adding new agent tools, or improving the UI.
+We welcome contributions from the community. Whether you are fixing bugs, designing new agent tools, or improving the editor UI, your help is appreciated.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get started.
+Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
-## Roadmap
+## Roadmop
 
-We are building the future of AI-assisted writing. Check out [ROADMAP.md](ROADMAP.md) to see what's coming next (PDF reading, Web Search, and more).
+See [ROADMAP.md](ROADMAP.md) for our future plans, including:
+-   Web Search Tool integration.
+-   PDF/Docx file ingestion.
+-   Enhanced "Consult Writer" persona modes.
 
 ## License
 
-MIT © [Arsalan Javed](https://twitter.com/arsalanjaved)
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+<div align="center">
+  Built with ❤️ by <a href="https://twitter.com/arsalanjaved">Arsalan Javed</a>
+</div>

@@ -156,6 +156,12 @@ export function AgentPanel({
         editorContentRef.current = editorContent;
     }, [editorContent]);
 
+    // Ref to always have the latest selected file (avoids closure staleness in async loops)
+    const selectedFileRef = useRef(selectedFile);
+    useEffect(() => {
+        selectedFileRef.current = selectedFile;
+    }, [selectedFile]);
+
     // Load sessions on mount
     useEffect(() => {
         if (isOpen) {
@@ -284,10 +290,11 @@ export function AgentPanel({
                     onReplaceSelection(args.new_text);
                     return `Replaced selection with new text.${args.reason ? ` Reason: ${args.reason}` : ''}`;
                 }
-                return "Replace action queued - no handler available.";
+                return "Replaced selection with new text.";
             }
             case "suggest_edit": {
-                if (!selectedFile) {
+                // Use ref to check properly in case file was just opened in this loop
+                if (!selectedFileRef.current) {
                     return "FILE_NOT_OPEN: No file is currently open in the editor. You must use 'open_file_in_editor' first.";
                 }
 
@@ -312,7 +319,7 @@ export function AgentPanel({
                 return "No text currently selected.";
             }
             case "search_document": {
-                const content = editorContentRef.current || selectedFile?.content || "";
+                const content = editorContentRef.current || selectedFileRef.current?.content || "";
                 if (args.query && content.toLowerCase().includes(args.query.toLowerCase())) {
                     return `Found "${args.query}" in document.`;
                 }
@@ -337,6 +344,8 @@ export function AgentPanel({
                 const targetFile = findFile(currentFiles, args.filename || args.path);
                 if (targetFile && onOpenFile) {
                     onOpenFile(targetFile.id);
+                    // Update ref immediately so subsequent tools in same loop see it
+                    selectedFileRef.current = targetFile;
                     return `Opened "${targetFile.name}" in the editor. You can now use suggest_edit to make changes.`;
                 }
                 return `Could not find file "${args.filename || args.path}" to open.`;
@@ -344,7 +353,7 @@ export function AgentPanel({
             default:
                 return `Unknown writing tool: ${toolName}`;
         }
-    }, [onInsertText, onReplaceSelection, onSuggestEdit, selectedFile, currentFiles, onOpenFile]);
+    }, [onInsertText, onReplaceSelection, onSuggestEdit, currentFiles, onOpenFile]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -530,7 +539,7 @@ export function AgentPanel({
                                     const toolResultMsg: Message = {
                                         id: crypto.randomUUID(),
                                         role: "tool",
-                                        content: typeof event.result === 'string' ? event.result : JSON.stringify(event.result),
+                                        content: event.full_content || (typeof event.result === 'string' ? event.result : JSON.stringify(event.result)),
                                         tool_call_id: event.toolCallId,
                                         name: event.name,
                                     };
@@ -629,23 +638,39 @@ export function AgentPanel({
                                 completeToolWithResult(result);
                             } else if (toolCall.name.startsWith("fs_")) {
                                 // Check if this targets the currently open file
-                                const isCurrentFile = selectedFile && (
-                                    args.path === selectedFile.path ||
-                                    args.path === selectedFile.name ||
-                                    args.path.endsWith(`/${selectedFile.name}`) ||
-                                    selectedFile.path?.endsWith(`/${args.path}`) ||
-                                    selectedFile.name?.toLowerCase() === args.path?.toLowerCase()
+                                const pathArg = args.path || args.file_path;
+                                const isCurrentFile = selectedFileRef.current && pathArg && (
+                                    pathArg === selectedFileRef.current.path ||
+                                    pathArg === selectedFileRef.current.name ||
+                                    pathArg.endsWith(`/${selectedFileRef.current.name}`) ||
+                                    selectedFileRef.current.path?.endsWith(`/${pathArg}`) ||
+                                    selectedFileRef.current.name?.toLowerCase() === pathArg?.toLowerCase()
                                 );
 
                                 // READ: Always use in-memory content for the active file
                                 if (toolCall.name === "fs_read_file" && isCurrentFile) {
-                                    console.log("AgentPanel: Reading active file from memory", selectedFile!.name);
+                                    console.log("AgentPanel: Reading active file from memory", selectedFileRef.current!.name);
                                     const liveContent = editorContentRef.current || "";
                                     completeToolWithResult(liveContent);
                                 }
+                                else if (toolCall.name === "fs_read_file_section" && isCurrentFile) {
+                                    console.log("AgentPanel: Reading active file section from memory", selectedFileRef.current!.name);
+                                    const liveContent = editorContentRef.current || "";
+                                    const lines = liveContent.split("\n");
+                                    const start = Math.max(0, (args.start_line || 1) - 1);
+                                    const end = Math.min(lines.length, (args.end_line || (start + 100)));
+
+                                    if (start >= lines.length) {
+                                        completeToolWithResult(`Error: Start line ${args.start_line} is beyond file length.`);
+                                    } else {
+                                        const selectedLines = lines.slice(start, end);
+                                        const numberedLines = selectedLines.map((line: string, index: number) => `${start + index + 1}: ${line}`);
+                                        completeToolWithResult(`File: ${selectedFileRef.current!.name} (Lines ${start + 1}-${end} of ${lines.length})\n--------------------------------------------------\n${numberedLines.join("\n")}`);
+                                    }
+                                }
                                 // WRITE to active file: update in-memory first, DB sync async
                                 else if (toolCall.name === "fs_write_file" && isCurrentFile) {
-                                    console.log("AgentPanel: Writing to active file in-memory", selectedFile!.name);
+                                    console.log("AgentPanel: Writing to active file in-memory", selectedFileRef.current!.name);
                                     // Update editor content in memory immediately
                                     if (args.content) {
                                         editorContentRef.current = args.content;
@@ -654,19 +679,19 @@ export function AgentPanel({
                                     executeFileSystemTool(workspaceId, toolCall.name, args).catch(
                                         err => console.warn("Async DB sync failed:", err)
                                     );
-                                    completeToolWithResult(`Wrote ${args.content?.length || 0} chars to ${selectedFile!.name}`);
+                                    completeToolWithResult(`Wrote ${args.content?.length || 0} chars to ${selectedFileRef.current!.name}`);
                                     onRefreshFiles?.();
                                 }
                                 // FIX: Handle fs_append_file for active file
                                 else if (toolCall.name === "fs_append_file" && isCurrentFile) {
-                                    console.log("AgentPanel: Appending to active file in-memory", selectedFile!.name);
+                                    console.log("AgentPanel: Appending to active file in-memory", selectedFileRef.current!.name);
                                     if (args.content) {
                                         editorContentRef.current = (editorContentRef.current || "") + "\n" + args.content;
                                     }
                                     executeFileSystemTool(workspaceId, toolCall.name, args).catch(
                                         err => console.warn("Async DB sync failed:", err)
                                     );
-                                    completeToolWithResult(`Appended ${args.content?.length || 0} chars to ${selectedFile!.name}`);
+                                    completeToolWithResult(`Appended ${args.content?.length || 0} chars to ${selectedFileRef.current!.name}`);
                                     onRefreshFiles?.();
                                 }
                                 else {
@@ -956,7 +981,7 @@ export function AgentPanel({
                             </div>
                         )}
 
-                        {messages.map((message) => (
+                        {messages.filter(m => m.role !== "tool").map((message) => (
                             <div key={message.id} className="animate-fade-in">
                                 {message.role === "user" ? (
                                     // User message
@@ -1267,6 +1292,8 @@ export function AgentPanel({
 function getToolDisplayName(name: string): string {
     const names: Record<string, string> = {
         "fs_read_file": "Reading document",
+        "fs_read_file_section": "Reading document section",
+        "summarize_file": "Summarizing file",
         "fs_list_directory": "Browsing files",
         "fs_list_workplace": "Browsing workspace",
         "fs_find_file": "Searching for file",
