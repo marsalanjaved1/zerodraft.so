@@ -658,67 +658,134 @@ export async function POST(req: Request) {
 
                                     let toolOutput = "";
 
-                                    if (call.name === "consult_writer") {
-                                        // Execute Writer
-                                        const args = call.args;
-                                        const writerContext = `Instruction: ${args.instruction}\nContext: ${args.context || "None"}\nTone: ${args.tone || "Neutral"}`;
+                                    try {
+                                        if (call.name === "consult_writer") {
+                                            // Execute Writer
+                                            const args = call.args;
+                                            const writerSystemPrompt = "You are an expert Ghost Writer.\n Your goal is to write high-quality content based on the user's request and the provided context.\n Return ONLY the written content. Do not include preamble or conversational filler.";
+                                            const writerContext = `Instruction: ${args.instruction}\nContext: ${args.context || "None"}\nTone: ${args.tone || "Neutral"}`;
 
-                                        const writerResponse = await writerLLM.invoke([
-                                            new SystemMessage(writerSystemPrompt),
-                                            new HumanMessage(writerContext)
-                                        ]);
-                                        toolOutput = typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content);
+                                            const writerResponse = await writerLLM.invoke([
+                                                new SystemMessage(writerSystemPrompt),
+                                                new HumanMessage(writerContext)
+                                            ]);
+                                            toolOutput = typeof writerResponse.content === 'string' ? writerResponse.content : JSON.stringify(writerResponse.content);
 
+                                        } else if (call.name === "summarize_file") {
+                                            // Execute Summarize File
+                                            const { file_path, focus } = call.args;
+                                            try {
+                                                const fs = new FileSystem(workspaceId);
+                                                const content = await fs.readFile(file_path);
 
-                                    } else if (call.name === "summarize_file") {
-                                        // Execute Summarize File
-                                        const { file_path, focus } = call.args;
-                                        try {
-                                            const fs = new FileSystem(workspaceId);
-                                            const content = await fs.readFile(file_path);
-
-                                            // If small, just return it
-                                            if (content.length < 3000) {
-                                                toolOutput = `File is small enough (${content.length} chars). Here is the content:\n${content}`;
-                                            } else {
-                                                console.log(`[AgentLoop] Summarizing file ${file_path} (${content.length} chars)...`);
-                                                // Summarize using Writer LLM
-                                                const summaryPrompt = `Please summarize the following file content.${focus ? ` Focus on: ${focus}` : ""} Keep it under 300 words. Capture key technical details, requirements, and architecture points.\n\nFile: ${file_path}\nContent (truncated):\n${content.slice(0, 50000)}...`;
-                                                const summaryResponse = await writerLLM.invoke([
-                                                    new SystemMessage("You are a technical documentation assistant. Summarize the provided text concisely but preserving key details."),
-                                                    new HumanMessage(summaryPrompt)
-                                                ]);
-                                                toolOutput = typeof summaryResponse.content === 'string' ? summaryResponse.content : JSON.stringify(summaryResponse.content);
+                                                // If small, just return it
+                                                if (content.length < 3000) {
+                                                    toolOutput = `File is small enough (${content.length} chars). Here is the content:\n${content}`;
+                                                } else {
+                                                    console.log(`[AgentLoop] Summarizing file ${file_path} (${content.length} chars)...`);
+                                                    // Summarize using Writer LLM
+                                                    const summaryPrompt = `Please summarize the following file content.${focus ? ` Focus on: ${focus}` : ""} Keep it under 300 words. Capture key technical details, requirements, and architecture points.\n\nFile: ${file_path}\nContent (truncated):\n${content.slice(0, 50000)}...`;
+                                                    const summaryResponse = await writerLLM.invoke([
+                                                        new SystemMessage("You are a technical documentation assistant. Summarize the provided text concisely but preserving key details."),
+                                                        new HumanMessage(summaryPrompt)
+                                                    ]);
+                                                    toolOutput = typeof summaryResponse.content === 'string' ? summaryResponse.content : JSON.stringify(summaryResponse.content);
+                                                }
+                                            } catch (e: any) {
+                                                toolOutput = `Error summarizing file: ${e.message}`;
                                             }
-                                        } catch (e: any) {
-                                            toolOutput = `Error summarizing file: ${e.message}`;
+
+                                        } else if (call.name === "web_search") {
+                                            // Execute Web Search
+                                            toolOutput = await webSearch.invoke(call.args);
+
+                                        } else if (call.name === "plan_execution") {
+                                            const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
+                                            const plan = await generatePlan(
+                                                typeof lastUserMsg.content === "string" ? lastUserMsg.content : "",
+                                                {
+                                                    hasOpenFile: currentFile !== null && currentFile !== undefined,
+                                                    openFileName: currentFile?.name,
+                                                    hasSelection: false,
+                                                    fileCount: folderTree ? folderTree.split("\n").length : 0,
+                                                },
+                                                effectiveSessionId
+                                            );
+                                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "planning", plan })}\n\n`));
+                                            toolOutput = formatPlanForPrompt(plan);
+
+                                        } else if (call.name === "fs_read_file") {
+                                            const pathArg = call.args.path;
+                                            console.log(`[AgentLoop] Read File: ${pathArg}`);
+
+                                            // Check active file context first (LIVE UNSAVED CONTENT)
+                                            const isCurrentFile = currentFile && pathArg && (
+                                                pathArg === currentFile.path ||
+                                                pathArg === currentFile.name ||
+                                                pathArg.endsWith(`/${currentFile.name}`) ||
+                                                currentFile.path?.endsWith(`/${pathArg}`) ||
+                                                currentFile.name?.toLowerCase() === pathArg?.toLowerCase()
+                                            );
+
+                                            if (isCurrentFile) {
+                                                console.log("[AgentLoop] Reading active file from request context");
+                                                toolOutput = currentFile.content || "";
+                                            } else {
+                                                const fs = new FileSystem(workspaceId, await createClient());
+                                                toolOutput = await fs.readFile(pathArg);
+                                            }
+
+                                        } else if (call.name === "fs_list_directory") {
+                                            const fs = new FileSystem(workspaceId, await createClient());
+                                            toolOutput = await fs.listFiles();
+
+                                        } else if (call.name === "fs_read_file_section") {
+                                            // Simplified section reading
+                                            const pathArg = call.args.file_path;
+                                            const startLine = call.args.start_line;
+                                            const endLine = call.args.end_line;
+
+                                            let fullContent = "";
+                                            const isCurrentFile = currentFile && pathArg && (
+                                                pathArg === currentFile.path ||
+                                                pathArg === currentFile.name ||
+                                                pathArg.endsWith(`/${currentFile.name}`) ||
+                                                currentFile.path?.endsWith(`/${pathArg}`) ||
+                                                currentFile.name?.toLowerCase() === pathArg?.toLowerCase()
+                                            );
+
+                                            if (isCurrentFile) {
+                                                fullContent = currentFile.content || "";
+                                            } else {
+                                                const fs = new FileSystem(workspaceId, await createClient());
+                                                fullContent = await fs.readFile(pathArg);
+                                            }
+
+                                            const lines = fullContent.split('\n');
+                                            toolOutput = lines.slice(Math.max(0, startLine - 1), endLine).join('\n');
+
+                                        } else if (call.name === "fs_search_file_content") {
+                                            const fs = new FileSystem(workspaceId, await createClient());
+                                            toolOutput = await fs.searchContent(call.args.query);
+
+                                        } else if (call.name === "fs_search_files") {
+                                            const fs = new FileSystem(workspaceId, await createClient());
+                                            toolOutput = await fs.findFiles(call.args.pattern);
+
+                                        } else if (call.name === "fs_read_file_outline") {
+                                            const pathArg = call.args.file_path;
+                                            const fs = new FileSystem(workspaceId, await createClient());
+                                            const content = await fs.readFile(pathArg);
+                                            const lines = content.split('\n');
+                                            toolOutput = "File Outline (first 50 lines):\n" + lines.slice(0, 50).join('\n') + "\n...(rest of file omitted)";
                                         }
 
-                                    } else if (call.name === "web_search") {
-                                        // Execute Web Search
-                                        toolOutput = await webSearch(call.args.query, 5, call.args.domains);
-                                    } else if (call.name === "plan_execution") {
-                                        // Execute Planner
-                                        const lastUserMsg = messages.filter((m: any) => m.role === "user").pop();
-                                        const plan = await generatePlan(
-                                            typeof lastUserMsg.content === "string" ? lastUserMsg.content : "",
-                                            {
-                                                hasOpenFile: currentFile !== null && currentFile !== undefined,
-                                                openFileName: currentFile?.name,
-                                                hasSelection: false,
-                                                fileCount: folderTree ? folderTree.split("\n").length : 0,
-                                            },
-                                            effectiveSessionId // Pass threadId
-                                        );
-
-                                        // Stream "Planning" event
-                                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "planning", plan })}\n\n`));
-
-                                        // Return plan as tool output
-                                        toolOutput = formatPlanForPrompt(plan);
+                                    } catch (err: any) {
+                                        console.error(`[AgentLoop] Error executing internal tool ${call.name}:`, err);
+                                        toolOutput = `Error executing tool: ${err.message}`;
                                     }
 
-                                    // Stream "Tool Result" event (truncated for UI display)
+                                    // Stream "Tool Result" event
                                     const truncatedResult = call.name === "web_search"
                                         ? `Found ${(toolOutput.match(/\*\*/g) || []).length / 2} results for "${call.args.query}"`
                                         : call.name === "consult_writer"
@@ -726,6 +793,7 @@ export async function POST(req: Request) {
                                             : call.name === "plan_execution"
                                                 ? "Plan generated"
                                                 : toolOutput.slice(0, 100);
+
                                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                                         type: "tool_result",
                                         toolCallId: call.id,
@@ -742,51 +810,53 @@ export async function POST(req: Request) {
                                 }
                                 console.log(`[AgentLoop] Finished internal tools (Loop ${loopCount}). Continuing loop...`);
                                 // Loop continues! Controller receives the results and decides what to do next.
-                                continue;
-                            }
 
-                            // If only external tools (fs_*, suggest_edit), return to Client
+                            }
+                            if (internalCalls.length === 0) {
+                                // If only external tools (fs_*, suggest_edit), return to Client
+                                // Fire background reflection (non-blocking)
+                                if (userId) {
+                                    const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
+                                    // extractAndStoreReflections(userId, workspaceId, snippet, userMemories, chatSessionId).catch(() => { });
+                                }
+
+                                // Stream "Tool Calls" event for client to execute
+                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                                    type: "tool_calls",
+                                    toolCalls: externalCalls.map(tc => ({
+                                        id: tc.id,
+                                        name: tc.name,
+                                        args: tc.args
+                                    })),
+                                    content: typeof response.content === "string" ? response.content : ""
+                                })}\n\n`));
+
+                                controller.close();
+                                console.log(`[AgentLoop] Yielding to client for external tools (Loop ${loopCount}).`);
+                                return;
+                            }
+                        } else {
+
+                            // No tools called -> Send the final text response (already generated by invoke)
+                            const content = typeof response.content === "string" ? response.content : "";
+
                             // Fire background reflection (non-blocking)
                             if (userId) {
                                 const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
                                 // extractAndStoreReflections(userId, workspaceId, snippet, userMemories, chatSessionId).catch(() => { });
                             }
 
-                            // Stream "Tool Calls" event for client to execute
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                                type: "tool_calls",
-                                toolCalls: externalCalls.map(tc => ({
-                                    id: tc.id,
-                                    name: tc.name,
-                                    args: tc.args
-                                })),
-                                content: typeof response.content === "string" ? response.content : ""
-                            })}\n\n`));
-
+                            if (content) {
+                                // Send token by token simulating stream or just send it all
+                                // For better UX with typing effect on client, we could split it, 
+                                // but sending it all at once is fine and faster.
+                                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
+                            }
+                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
                             controller.close();
-                            console.log(`[AgentLoop] Yielding to client for external tools (Loop ${loopCount}).`);
+                            console.log(`[AgentLoop] Final response sent (Loop ${loopCount}). Done.`);
                             return;
                         }
-
-                        // No tools called -> Send the final text response (already generated by invoke)
-                        const content = typeof response.content === "string" ? response.content : "";
-
-                        // Fire background reflection (non-blocking)
-                        if (userId) {
-                            const snippet = messages.slice(-4).map((m: any) => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 500) : ''}`).join('\n');
-                            // extractAndStoreReflections(userId, workspaceId, snippet, userMemories, chatSessionId).catch(() => { });
-                        }
-
-                        if (content) {
-                            // Send token by token simulating stream or just send it all
-                            // For better UX with typing effect on client, we could split it, 
-                            // but sending it all at once is fine and faster.
-                            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", content })}\n\n`));
-                        }
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
-                        controller.close();
-                        console.log(`[AgentLoop] Final response sent (Loop ${loopCount}). Done.`);
-                        return;
                     }
 
 

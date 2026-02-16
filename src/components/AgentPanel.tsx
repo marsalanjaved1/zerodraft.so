@@ -67,6 +67,7 @@ interface AgentPanelProps {
     onRefreshFiles?: () => void;
     onOpenFile?: (fileId: string) => void;
     onClose?: () => void;
+    onSaveRequest?: () => Promise<void>;
 }
 
 interface ChatSession {
@@ -134,7 +135,8 @@ export function AgentPanel({
     onApplyDiff,
     onRefreshFiles,
     onOpenFile,
-    onClose
+    onClose,
+    onSaveRequest
 }: AgentPanelProps) {
     const supabase = createClient();
     const [messages, setMessages] = useState<Message[]>([]);
@@ -793,6 +795,12 @@ export function AgentPanel({
         abortControllerRef.current = new AbortController();
 
         try {
+            // Force save before starting agent loop to ensure DB is up to date
+            if (onSaveRequest) {
+                console.log("[AgentPanel] Forcing save before agent execution...");
+                await onSaveRequest();
+            }
+
             // Ensure session exists
             let sessionId = currentSessionId;
             if (!sessionId) {
