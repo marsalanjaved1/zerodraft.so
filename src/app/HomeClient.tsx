@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AgentAnimation } from "@/components/AgentAnimation";
+import { supabase } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 
 interface HomeClientProps {
@@ -12,7 +13,43 @@ interface HomeClientProps {
 type PersonaTab = "pm" | "fiction";
 
 export default function HomeClient({ user }: HomeClientProps) {
-    const [activeTab, setActiveTab] = useState<PersonaTab>("pm");
+    const [activeTab, setActiveTab] = useState<PersonaTab>("fiction");
+    const [email, setEmail] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+
+    const handleEmailSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email.trim() || isSubmitting) return;
+
+        setIsSubmitting(true);
+        setErrorMsg("");
+
+        try {
+            const { error } = await supabase
+                .from("waitlist")
+                .insert([{ email: email.trim() }]);
+
+            if (error) {
+                // Code 23505 is unique violation in Postgres
+                if (error.code === "23505") {
+                    setErrorMsg("You're already on the waitlist!");
+                } else {
+                    setErrorMsg("Something went wrong. Please try again.");
+                    console.error("Waitlist insertion error:", error);
+                }
+            } else {
+                setSubmitted(true);
+                setEmail("");
+            }
+        } catch (err) {
+            setErrorMsg("An unexpected error occurred.");
+            console.error(err);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="flex min-h-screen flex-col overflow-x-hidden bg-white text-[#111318] selection:bg-primary/20">
@@ -34,29 +71,20 @@ export default function HomeClient({ user }: HomeClientProps) {
                         </Link>
                     </nav>
                     <div className="flex items-center gap-4">
-                        {user ? (
-                            <Link
-                                href="/dashboard"
-                                className="flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-all"
-                            >
-                                Go to Dashboard
-                            </Link>
-                        ) : (
-                            <>
-                                <Link
-                                    href="/login"
-                                    className="hidden sm:flex text-sm font-bold text-[#111318] px-4 py-2 hover:bg-[#f0f2f4] rounded-lg transition-colors"
-                                >
-                                    Log In
-                                </Link>
-                                <Link
-                                    href="/signup"
-                                    className="flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-all"
-                                >
-                                    Start Writing
-                                </Link>
-                            </>
-                        )}
+                        <a
+                            href="https://github.com/marsalanjaved1/zerodraft.so"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hidden sm:flex text-sm font-bold text-[#111318] px-4 py-2 hover:bg-[#f0f2f4] rounded-lg transition-colors items-center gap-2"
+                        >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
+                                <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd"></path>
+                            </svg>
+                            GitHub
+                        </a>
+                        <a href="#hero-email" className="flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-all">
+                            Waitlist
+                        </a>
                     </div>
                 </div>
             </header>
@@ -68,26 +96,26 @@ export default function HomeClient({ user }: HomeClientProps) {
                         {/* Generic badge */}
                         <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
                             <span className="material-symbols-outlined text-base">bolt</span>
-                            AI-Powered Writing Agent
+                            AI-Powered Writing Partner
                         </div>
 
                         <h1 className="serif-headline text-5xl font-semibold leading-[1.1] tracking-tight text-[#111318] sm:text-7xl lg:text-8xl">
-                            Your AI<br />Writing Agent
+                            Write with AI.<br />Stay in control.
                         </h1>
                         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-[#616f89] sm:text-xl">
-                            ZeroDraft reads your sources, understands context, and drafts documents directly in the editor — with full track changes. Ship PRDs, write novels, or draft anything in minutes.
+                            ZeroDraft gathers your research, connects your sources, and suggests edits directly in the editor — with full track changes. You accept, reject, or revise every word.
                         </p>
 
                         {/* Stat bar */}
                         <div className="mt-8 flex flex-wrap justify-center gap-6 sm:gap-10">
                             <div className="flex flex-col items-center">
                                 <span className="text-2xl font-bold text-[#111318] sm:text-3xl">10×</span>
-                                <span className="text-xs text-[#616f89] mt-1">faster first drafts</span>
+                                <span className="text-xs text-[#616f89] mt-1">less context gathering</span>
                             </div>
                             <div className="w-px h-12 bg-[#e5e7eb] hidden sm:block"></div>
                             <div className="flex flex-col items-center">
                                 <span className="text-2xl font-bold text-[#111318] sm:text-3xl">100%</span>
-                                <span className="text-xs text-[#616f89] mt-1">context-aware</span>
+                                <span className="text-xs text-[#616f89] mt-1">your voice</span>
                             </div>
                             <div className="w-px h-12 bg-[#e5e7eb] hidden sm:block"></div>
                             <div className="flex flex-col items-center">
@@ -96,37 +124,40 @@ export default function HomeClient({ user }: HomeClientProps) {
                             </div>
                         </div>
 
-                        <div className="mt-10 flex flex-wrap justify-center gap-4">
-                            {user ? (
-                                <Link
-                                    href="/dashboard"
-                                    className="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg hover:shadow-xl hover:translate-y-[-1px] transition-all"
-                                >
-                                    Go to Dashboard
-                                </Link>
+                        <div className="mt-10 w-full max-w-md mx-auto" id="hero-email">
+                            {submitted ? (
+                                <div className="flex flex-col items-center justify-center gap-2 h-14 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        You&apos;re on the waitlist! We&apos;ll be in touch soon.
+                                    </div>
+                                </div>
                             ) : (
-                                <Link
-                                    href="/signup"
-                                    className="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg hover:shadow-xl hover:translate-y-[-1px] transition-all"
-                                >
-                                    Start Writing Now
-                                </Link>
+                                <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        type="email"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={isSubmitting}
+                                        placeholder="you@email.com"
+                                        className="flex-1 h-14 px-5 rounded-lg border border-[#dbdfe6] bg-white text-base text-[#111318] placeholder:text-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all shadow-[0_2px_8px_-4px_rgba(0,0,0,0.1)] disabled:opacity-50"
+                                    />
+                                    <button type="submit" disabled={isSubmitting} className="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:translate-y-[-1px] disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed transition-all">
+                                        {isSubmitting ? "Joining..." : "Join Waitlist"}
+                                    </button>
+                                </form>
                             )}
-                            <a
-                                href="https://github.com/marsalanjaved1/zerodraft.so"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex h-14 min-w-[180px] items-center justify-center rounded-lg bg-[#f0f2f4] px-8 text-base font-bold text-[#111318] hover:bg-[#e5e7eb] transition-all gap-2"
-                            >
-                                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
-                                    <path
-                                        fillRule="evenodd"
-                                        d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-                                        clipRule="evenodd"
-                                    ></path>
-                                </svg>
-                                View on GitHub
-                            </a>
+                            {errorMsg && <p className="mt-2 text-sm text-red-500 text-center font-medium">{errorMsg}</p>}
+                            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[#616f89] font-medium">
+                                <div className="flex -space-x-2">
+                                    <div className="size-6 rounded-full border-2 border-[#f9fafb] bg-amber-100 flex items-center justify-center text-[10px] text-amber-700 font-bold">A</div>
+                                    <div className="size-6 rounded-full border-2 border-[#f9fafb] bg-emerald-100 flex items-center justify-center text-[10px] text-emerald-700 font-bold">T</div>
+                                    <div className="size-6 rounded-full border-2 border-[#f9fafb] bg-blue-100 flex items-center justify-center text-[10px] text-blue-700 font-bold">M</div>
+                                </div>
+                                <span>Join 200+ writers on the waitlist</span>
+                            </div>
+                            <p className="mt-3 text-xs text-[#9ca3af] text-center">Free during beta · No credit card required · Open source</p>
                         </div>
                     </div>
 
@@ -135,21 +166,21 @@ export default function HomeClient({ user }: HomeClientProps) {
                         {/* Persona Tabs */}
                         <div className="flex justify-center mb-8">
                             <div className="inline-flex items-center rounded-xl bg-[#f0f2f4] p-1.5 gap-1">
-                                <button
+                                {/*<button
                                     onClick={() => setActiveTab("pm")}
                                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "pm"
-                                            ? "bg-white text-[#111318] shadow-sm"
-                                            : "text-[#616f89] hover:text-[#111318]"
+                                        ? "bg-white text-[#111318] shadow-sm"
+                                        : "text-[#616f89] hover:text-[#111318]"
                                         }`}
                                 >
                                     <span className="material-symbols-outlined text-base">dashboard</span>
                                     Product Manager
-                                </button>
+                                </button>*/}
                                 <button
                                     onClick={() => setActiveTab("fiction")}
                                     className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === "fiction"
-                                            ? "bg-white text-[#111318] shadow-sm"
-                                            : "text-[#616f89] hover:text-[#111318]"
+                                        ? "bg-white text-[#111318] shadow-sm"
+                                        : "text-[#616f89] hover:text-[#111318]"
                                         }`}
                                 >
                                     <span className="material-symbols-outlined text-base">auto_stories</span>
@@ -266,16 +297,16 @@ export default function HomeClient({ user }: HomeClientProps) {
                     <div className="mx-auto max-w-7xl px-6 lg:px-10">
                         <div className="text-center mb-16">
                             <h2 className="serif-headline text-3xl font-bold text-[#111318] sm:text-4xl">Built for how you actually write.</h2>
-                            <p className="mt-4 text-lg text-[#616f89] max-w-2xl mx-auto">Not another chatbot. A workspace that understands your context.</p>
+                            <p className="mt-4 text-lg text-[#616f89] max-w-2xl mx-auto">Not another content generator. A workspace that keeps you in the driver&apos;s seat.</p>
                         </div>
                         <div className="grid gap-12 md:grid-cols-3">
                             <div className="flex flex-col gap-4">
                                 <div className="flex size-12 items-center justify-center rounded-lg bg-[#111318] text-white">
                                     <span className="material-symbols-outlined">cable</span>
                                 </div>
-                                <h3 className="text-xl font-bold text-[#111318]">Pulls Context From Your Sources</h3>
+                                <h3 className="text-xl font-bold text-[#111318]">Gathers Context So You Don&apos;t Have To</h3>
                                 <p className="text-[#616f89] leading-relaxed">
-                                    Connects to your tools and documents. Reads context from Slack, Jira, research notes, character sheets — whatever you&apos;re working with.
+                                    Connects to your tools and documents. Pulls context from Slack, Jira, research notes, character sheets — so you can focus on the writing, not the gathering.
                                 </p>
                                 <div className="flex gap-2 mt-2 flex-wrap">
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#4A154B]/5 text-[#4A154B] text-xs font-medium">
@@ -298,9 +329,9 @@ export default function HomeClient({ user }: HomeClientProps) {
                                 <div className="flex size-12 items-center justify-center rounded-lg bg-[#111318] text-white">
                                     <span className="material-symbols-outlined">edit_document</span>
                                 </div>
-                                <h3 className="text-xl font-bold text-[#111318]">Writes Documents, Not Chat Responses</h3>
+                                <h3 className="text-xl font-bold text-[#111318]">Track Changes on Every AI Edit</h3>
                                 <p className="text-[#616f89] leading-relaxed">
-                                    A full rich-text editor — not a chatbot that generates text to paste elsewhere. Accept or reject every AI change with track changes, just like Google Docs.
+                                    Every AI suggestion appears as a tracked change — accept, reject, or revise. You stay in control of every word, just like Google Docs.
                                 </p>
                             </div>
                             <div className="flex flex-col gap-4">
@@ -328,25 +359,40 @@ export default function HomeClient({ user }: HomeClientProps) {
                         ></div>
                         <div className="relative z-10">
                             <h2 className="serif-headline text-4xl font-bold text-white sm:text-5xl lg:text-6xl">
-                                Write your next draft in 10 minutes.
+                                Your words. AI-powered workflow.
                             </h2>
-                            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400">Stop gathering context. Start writing.</p>
-                            <div className="mt-10 flex flex-wrap justify-center gap-4">
-                                {user ? (
-                                    <Link
-                                        href="/dashboard"
-                                        className="flex h-14 items-center justify-center rounded-lg bg-primary px-10 text-base font-bold text-white shadow-lg hover:shadow-primary/20 transition-all"
-                                    >
-                                        Go to Dashboard
-                                    </Link>
+                            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-400">Better context. Better drafts. Full control.</p>
+                            <div className="mt-10 w-full max-w-md mx-auto">
+                                {submitted ? (
+                                    <div className="flex items-center justify-center gap-2 h-14 rounded-lg bg-emerald-50/10 border border-emerald-400/30 text-emerald-300 font-semibold text-sm">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                        You&apos;re on the waitlist!
+                                    </div>
                                 ) : (
-                                    <Link
-                                        href="/signup"
-                                        className="flex h-14 items-center justify-center rounded-lg bg-primary px-10 text-base font-bold text-white shadow-lg hover:shadow-primary/20 transition-all"
-                                    >
-                                        Start Writing Now
-                                    </Link>
+                                    <form onSubmit={handleEmailSubmit} className="flex flex-col sm:flex-row gap-3">
+                                        <input
+                                            type="email"
+                                            required
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={isSubmitting}
+                                            placeholder="you@email.com"
+                                            className="flex-1 h-14 px-5 rounded-lg border border-white/20 bg-white/10 text-base text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all backdrop-blur-sm shadow-[0_2px_8px_-4px_rgba(0,0,0,0.5)] disabled:opacity-50"
+                                        />
+                                        <button type="submit" disabled={isSubmitting} className="flex h-14 items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg shadow-primary/20 hover:shadow-xl hover:translate-y-[-1px] disabled:opacity-70 disabled:hover:translate-y-0 disabled:cursor-not-allowed transition-all">
+                                            {isSubmitting ? "Joining..." : "Join Waitlist"}
+                                        </button>
+                                    </form>
                                 )}
+                                {errorMsg && <p className="mt-2 text-sm text-red-400 text-center font-medium">{errorMsg}</p>}
+                                <div className="mt-5 flex items-center justify-center gap-2 text-sm text-gray-400 font-medium tracking-wide">
+                                    <div className="flex -space-x-2">
+                                        <div className="size-6 rounded-full border-2 border-[#111318] bg-amber-100 flex items-center justify-center text-[10px] text-amber-700 font-bold">A</div>
+                                        <div className="size-6 rounded-full border-2 border-[#111318] bg-emerald-100 flex items-center justify-center text-[10px] text-emerald-700 font-bold">T</div>
+                                        <div className="size-6 rounded-full border-2 border-[#111318] bg-blue-100 flex items-center justify-center text-[10px] text-blue-700 font-bold">M</div>
+                                    </div>
+                                    <span>Join 200+ writers on the waitlist</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -362,7 +408,7 @@ export default function HomeClient({ user }: HomeClientProps) {
                                 <span className="material-symbols-outlined text-primary text-2xl font-bold">edit_note</span>
                                 <h2 className="text-lg font-bold serif-headline">zerodraft.so</h2>
                             </div>
-                            <p className="text-sm text-[#616f89]">Open Source. AI-Powered. Built for Writers.</p>
+                            <p className="text-sm text-[#616f89]">Open Source. Human-First. Built for Writers.</p>
                         </div>
                     </div>
                     <div className="mt-16 flex flex-col items-center justify-between gap-6 border-t border-[#f0f2f4] pt-8 sm:flex-row">

@@ -194,27 +194,15 @@ const MANUSCRIPT_CONTENT: ContentBlock[] = [
     { type: 'p', content: "Lira's letter arrived folded into a dead bird — the Drifters' way of saying 'urgent.' Three words: Voss found us." },
 ];
 
-const GENERATED_CHAPTER_DRAFT: ContentBlock[] = [
-    { type: 'h1', content: "Chapter 3 — The Confrontation" },
-    { type: 'p', content: "The Ironspire rose from the ash like a broken tooth against the sky. Kael crouched behind the remnants of a watchtower, his fingers tracing the hilt of his blade — a nervous habit he thought he'd buried years ago." },
-    { type: 'p', content: "\"You don't have to do this alone,\" Maren said from somewhere behind him. Her voice carried the calm of someone who had already seen how this ended." },
-    { type: 'p', content: "\"I'm not doing it for company.\" He didn't turn around." },
-    { type: 'p', content: "The Collective's banners hung limp in the dead air — crimson and iron-gray, the colors of a world that had stopped pretending. Below, soldiers moved in precise formations across the courtyard. Voss trained them well. Voss trained everyone well, right up until he put a torch to everything they loved." },
-    { type: 'quote', content: "He could still smell it. After six years, he could still smell the smoke." },
-    { type: 'p', content: "Kael closed his eyes and reached for the threads. They came reluctantly, thin and brittle this far into the Ashlands — like trying to start a fire with wet wood. He pulled anyway, feeling the familiar ache bloom behind his ribs, the greying at his temples spreading another fraction of an inch." },
-    { type: 'p', content: "When he opened his eyes, the watchtower's shadow stretched impossibly long, pooling around the nearest guard's feet like dark water. The man froze. Then crumpled." },
-    { type: 'p', content: "\"Move,\" Kael said. And for the first time in six years, someone followed him into the dark." },
-];
-
-const GENERATED_OUTLINE_ADDITION: ContentBlock[] = [
-    { type: 'h2', content: "Chapter 3 Summary (New)" },
-    { type: 'p', content: "Added to manuscript outline" },
-    { type: 'h2', content: "Key Beats" },
-    { type: 'ul', content: "Kael arrives at the Ironspire with Maren\nFirst use of threadweaving — establishes magic cost\nSilent takedown of outer guard\nKael accepts a follower for the first time (arc shift)" },
-    { type: 'h2', content: "Character Development" },
-    { type: 'quote', content: "Turning point: Kael stops working alone. His 'trust no one' flaw cracks when Maren follows without asking permission." },
-    { type: 'h2', content: "Threads to Resolve" },
-    { type: 'ul', content: "Voss confrontation set up for Chapter 4\nGreying side-effect foreshadows cost of final battle\nLira's location still unknown — tension maintained" },
+const CONTINUITY_REVIEW_REPORT: ContentBlock[] = [
+    { type: 'h1', content: "Continuity Review — Chapter 3" },
+    { type: 'p', content: "Analysis complete. Compared against Kael's Character Notes and The Ashlands World Bible." },
+    { type: 'h2', content: "✅ Consistent Elements" },
+    { type: 'ul', content: "Kael's Voice: Strong match. The terse dialogue (\"I'm not doing it for company\") perfectly aligns with his 'avoids emotion' trait.\nMagic System: Good integration. Threadweaving cost (greying/aching) matches the World Bible rules." },
+    { type: 'h2', content: "⚠️ Continuity Flags" },
+    { type: 'ul', content: "Faction Inconsistency: You mention \"The Collective's banners... crimson and iron-gray\". The World Bible says the Collective uses green and gold to symbolize The Verdance. Iron-gray belongs to the Drifters.\nTimeline Gap: Ch 1-2 established Kael had 12 hours before Voss's scouts arrived. It's now dusk, but the travel time to the Ironspire is 2 days. How did he cross the distance so quickly?" },
+    { type: 'h2', content: "💡 Suggestions" },
+    { type: 'p', content: "Add sensory details matching the Ashlands geography. When Kael reaches for the threads, describe the smell of sulfur or the crunch of scorched earth beneath his boots." }
 ];
 
 // --- PM Agent Scenario ---
@@ -292,7 +280,7 @@ const PM_SCENARIO: Scenario = {
 const FICTION_SCENARIO: Scenario = {
     id: 'fiction',
     name: 'Writing Agent',
-    description: 'Research → Draft → Refine',
+    description: 'Research → Review → Suggest',
     initialFileId: 'char_notes',
     files: [
         {
@@ -306,7 +294,8 @@ const FICTION_SCENARIO: Scenario = {
         },
         {
             id: 'manuscripts', name: 'Manuscripts', type: 'folder', isOpen: true, children: [
-                { id: 'manuscript_main', name: 'The_Last_Light.md', type: 'file', icon: 'manuscript' }
+                { id: 'manuscript_main', name: 'The_Last_Light.md', type: 'file', icon: 'manuscript' },
+                { id: 'chapter_3_draft', name: 'Chapter_3_Draft.md', type: 'file', icon: 'doc' }
             ]
         },
     ],
@@ -314,34 +303,34 @@ const FICTION_SCENARIO: Scenario = {
         'char_notes': CHARACTER_NOTES_CONTENT,
         'world_doc': WORLD_BUILDING_CONTENT,
         'manuscript_main': MANUSCRIPT_CONTENT,
+        'chapter_3_draft': [
+            { type: 'h1', content: "Chapter 3 Draft" },
+            { type: 'p', content: "The Ironspire rose from the ash like a broken tooth against the sky. Kael crouched behind the remnants of a watchtower, his fingers tracing the hilt of his blade..." },
+            { type: 'p', content: "\"I'm not doing it for company.\" He didn't turn around." },
+            { type: 'p', content: "The Collective's banners hung limp in the dead air — crimson and iron-gray, the colors of a world that had stopped pretending." },
+            { type: 'p', content: "Kael closed his eyes and reached for the threads. They came reluctantly... He pulled anyway, feeling the familiar ache bloom behind his ribs, the greying at his temples spreading another fraction of an inch." }
+        ]
     },
-    promptText: "Write Chapter 3 — the confrontation at the Ironspire. Use my character notes and world bible.",
-    completionText: "Done. Chapter 3 is drafted and I've updated the manuscript outline.",
+    promptText: "Review Chapter 3 for continuity with my character notes and world bible. Flag anything inconsistent.",
+    completionText: "Review complete. Found 2 inconsistencies and 3 suggestions. Your voice and arc are strong — here's what to tighten.",
     actions: [
         // 1. Read context
-        { type: 'tool_call', name: 'read_notes', args: { file: "Character Notes" }, resultSummary: "Loaded Kael's arc & voice", duration: 1200 },
-        { type: 'tool_call', name: 'read_notes', args: { file: "World Bible" }, resultSummary: "Loaded factions, magic system", duration: 1000 },
-        { type: 'tool_call', name: 'fs_read_file', args: { path: "Manuscripts/The_Last_Light.md" }, resultSummary: "Read Ch 1–2 (24.3k words)", duration: 1400 },
+        { type: 'tool_call', name: 'read_notes', args: { file: "Character Notes (Kael)" }, resultSummary: "Loaded arc & voice", duration: 1200 },
+        { type: 'tool_call', name: 'read_notes', args: { file: "World Bible (Ashlands)" }, resultSummary: "Loaded factions & rules", duration: 1000 },
+        { type: 'tool_call', name: 'fs_read_file', args: { path: "Manuscripts/The_Last_Light.md" }, resultSummary: "Read Ch 1–2 (context)", duration: 1400 },
 
         // 2. Think / Plan
         {
             type: 'think',
-            content: "Planning Chapter 3...\n• Setting: Ironspire ruins, ash plains\n• POV: Kael (close 3rd)\n• Key beat: First threadweaving scene\n• Arc shift: Kael allows Maren to follow\n• Tone: Tense, sparse prose\n\nPlan:\n1. Draft the confrontation scene (~1,200 words)\n2. Update manuscript outline with chapter summary",
+            content: "Analyzing Chapter 3 draft against sources...\n• Cross-referencing Kael's voice (terse, dry humor) with dialogue\n• Checking magic system rules (threadweaving costs vitality)\n• Verifying faction details match world bible\n• Checking timeline consistency with Ch 1–2",
             duration: 3500
         },
 
-        // 3. Draft Chapter
-        { type: 'tool_call', name: 'consult_writer', args: { style: "sparse literary fantasy" }, resultSummary: "Style locked: terse, sensory", duration: 800 },
-        { type: 'tool_call', name: 'fs_write_file', args: { path: "Drafts/Chapter_3_Draft.md" }, resultSummary: "Created file", duration: 600 },
-        { type: 'create_file', folderId: 'fiction_drafts', fileId: 'chapter_3', name: 'Chapter_3_Draft.md', icon: 'doc', duration: 100 },
-        { type: 'stream_content', fileId: 'chapter_3', blocks: GENERATED_CHAPTER_DRAFT },
-
-        { type: 'agent_message', content: "Chapter 3 drafted. Now I'll update the manuscript outline with the new chapter summary.", duration: 2000 },
-
-        // 4. Update Manuscript Outline
-        { type: 'tool_call', name: 'fs_read_file', args: { path: "Manuscripts/The_Last_Light.md" }, resultSummary: "Read file", duration: 800 },
-        { type: 'open_file', fileId: 'manuscript_main', duration: 200 },
-        { type: 'stream_content', fileId: 'manuscript_main', blocks: GENERATED_OUTLINE_ADDITION, append: true },
+        // 3. Stream Review Report
+        { type: 'open_file', fileId: 'chapter_3_draft', duration: 1000 },
+        { type: 'tool_call', name: 'fs_write_file', args: { path: "Drafts/Continuity_Review.md" }, resultSummary: "Created review", duration: 600 },
+        { type: 'create_file', folderId: 'fiction_drafts', fileId: 'continuity_review', name: 'Continuity_Review.md', icon: 'doc', duration: 100 },
+        { type: 'stream_content', fileId: 'continuity_review', blocks: CONTINUITY_REVIEW_REPORT },
     ]
 };
 
